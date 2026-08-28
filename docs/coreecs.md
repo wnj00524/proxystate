@@ -31,4 +31,24 @@
 
 The system is configured with an optional positive per-tick increase so simulation tests can use a larger value without changing production defaults.
 
+### 4.4 World Clock System (Milestone 2)
+
+**Goal:** Advance a shared world calendar independently of rendering frame rate.
+
+* Store one `WorldTime` component as the world-time singleton.
+* Convert real elapsed seconds to simulation seconds using `600` real seconds per in-world day by default.
+* Keep the last simulation delta on `WorldTime` so time-based systems consume the same elapsed interval.
+* Job schedules use Monday as day `1`, integer minutes from midnight, and non-overnight intervals.
+
+### 4.5 Commuting System (Milestone 2)
+
+**Goal:** Move Tier 1 agents between assigned homes and workplaces according to their job schedules.
+
+* Query `AgentLocation`, `AgentTravel`, `Identity`, and `AgentState` together.
+* Use the assigned job hash in `Identity.OccupationId` to resolve workdays and work interval data.
+* Begin travel early enough for the agent to arrive at the scheduled work start.
+* Traverse the precomputed shortest-travel-time route, using each network edge's duration.
+* Begin the reverse route at the scheduled work end and set the agent to rest when home.
+* Agents remain home on non-workdays. Missing routes fail during assignment or raise a clear topology error rather than creating partial agent state.
+
 ---

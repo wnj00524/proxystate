@@ -19,12 +19,30 @@ public sealed class SimulationTests
             typeof(PoliticalAlignment),
             typeof(AgentAttributes),
             typeof(Psychology),
-            typeof(AgentState)
+            typeof(AgentState),
+            typeof(WorldTime),
+            typeof(AgentLocation),
+            typeof(AgentTravel)
         };
         var tags = new[] { typeof(Tier1LodTag), typeof(Tier2LodTag), typeof(Tier3LodTag) };
 
         Assert.All(components, type => Assert.True(typeof(IComponent).IsAssignableFrom(type), type.Name));
         Assert.All(tags, type => Assert.True(typeof(ITag).IsAssignableFrom(type), type.Name));
+    }
+
+    [Fact]
+    public void CatalogLoadsJobsAndNetworkedWorldDefinitions()
+    {
+        var catalog = LoadCatalog();
+
+        Assert.NotEmpty(catalog.Jobs);
+        Assert.Equal(5, catalog.World.Locations.Count);
+        Assert.Equal("office-worker", catalog.Jobs.Single(job => job.Hash == 2001).Id);
+
+        var route = catalog.World.FindShortestRoute(3001, 3004);
+        Assert.NotNull(route);
+        Assert.Equal(new[] { 3001, 3003, 3004 }, route.LocationIds);
+        Assert.Equal(25, route.TravelMinutes);
     }
 
     [Fact]
@@ -41,6 +59,134 @@ public sealed class SimulationTests
         Assert.Equal(SimulationDefaults.AgentCount, store.Query<Psychology>().Count);
         Assert.Equal(SimulationDefaults.AgentCount, store.Query<AgentState>().Count);
         Assert.Equal(SimulationDefaults.AgentCount, store.Query<AgentAttributes>().AllTags(Tags.Get<Tier1LodTag>()).Count);
+    }
+
+    [Fact]
+    public void SpawnerAssignsJobsHomesWorkplacesAndDeterministicRoutes()
+    {
+        var catalog = LoadCatalog();
+        var store = new EntityStore();
+        new AgentSpawner(catalog).Spawn(store, 100, new Random(123));
+
+        foreach (var entity in store.Query<AgentLocation>().Entities)
+        {
+            var identity = entity.GetComponent<Identity>();
+            var job = Assert.Single(catalog.Jobs, candidate => candidate.Hash == identity.OccupationId);
+            var location = entity.GetComponent<AgentLocation>();
+            var travel = entity.GetComponent<AgentTravel>();
+
+            Assert.Equal(location.HomeLocationId, location.CurrentLocationId);
+            Assert.Equal(SimulationDefaults.ResidentialLocationType,
+                catalog.World.GetLocation(location.HomeLocationId).Type);
+            Assert.Equal(job.WorkplaceType,
+                catalog.World.GetLocation(location.WorkLocationId).Type,
+                StringComparer.OrdinalIgnoreCase);
+            Assert.Equal(location.HomeLocationId, travel.RouteLocationIds[0]);
+            Assert.Equal(location.WorkLocationId, travel.RouteLocationIds[^1]);
+            Assert.Equal(AgentTravelMode.AtHome, travel.Mode);
+        }
+    }
+
+    [Fact]
+    public void WorldClockAdvancesOneInWorldDayPerTenRealMinutes()
+    {
+        var store = new EntityStore();
+        var clock = new WorldClockSystem(store);
+        var root = new SystemRoot(store) { clock };
+
+        clock.Advance(SimulationDefaults.RealSecondsPerSimulationDay);
+        root.Update(default);
+
+        var time = clock.ClockEntity.GetComponent<WorldTime>();
+        Assert.Equal(SimulationDefaults.SimulationSecondsPerDay, time.ElapsedSimulationSeconds);
+        Assert.Equal(1, time.DayIndex);
+        Assert.Equal(2, time.DayOfWeek);
+        Assert.Equal(0, time.MinuteOfDay);
+    }
+
+    [Fact]
+    public void CommutingSystemMovesAgentToWorkAndBackHomeOnAWorkday()
+    {
+        var catalog = LoadCatalog();
+        var store = new EntityStore();
+        var clock = new WorldClockSystem(store);
+        var entity = store.CreateEntity(
+            new Identity { NameId = 1, OccupationId = 2001 },
+            new AgentLocation { HomeLocationId = 3001, WorkLocationId = 3004, CurrentLocationId = 3001 },
+            new AgentTravel
+            {
+                RouteLocationIds = new[] { 3001, 3003, 3004 },
+                TotalTravelMinutes = 25,
+                RoutePosition = 0,
+                RemainingTravelMinutes = 0,
+                Mode = AgentTravelMode.AtHome
+            },
+            new AgentState { CurrentActionHash = 1002 },
+            Tags.Get<Tier1LodTag>());
+        var commuting = new CommutingSystem(catalog, clock.ClockEntity);
+        var root = new SystemRoot(store) { clock, commuting };
+
+        AdvanceMinutes(clock, root, 455);
+        Assert.Equal(AgentTravelMode.TravellingToWork, entity.GetComponent<AgentTravel>().Mode);
+
+        AdvanceMinutes(clock, root, 25);
+        Assert.Equal(AgentTravelMode.AtWork, entity.GetComponent<AgentTravel>().Mode);
+        Assert.Equal(3004, entity.GetComponent<AgentLocation>().CurrentLocationId);
+        Assert.Equal(1001, entity.GetComponent<AgentState>().CurrentActionHash);
+
+        AdvanceMinutes(clock, root, 480);
+        Assert.Equal(AgentTravelMode.TravellingHome, entity.GetComponent<AgentTravel>().Mode);
+
+        AdvanceMinutes(clock, root, 25);
+        Assert.Equal(AgentTravelMode.AtHome, entity.GetComponent<AgentTravel>().Mode);
+        Assert.Equal(3001, entity.GetComponent<AgentLocation>().CurrentLocationId);
+        Assert.Equal(1002, entity.GetComponent<AgentState>().CurrentActionHash);
+    }
+
+    [Fact]
+    public void CommutingSystemKeepsAgentHomeOnANonWorkday()
+    {
+        var catalog = LoadCatalog();
+        var store = new EntityStore();
+        var clock = new WorldClockSystem(store);
+        var entity = store.CreateEntity(
+            new Identity { NameId = 1, OccupationId = 2001 },
+            new AgentLocation { HomeLocationId = 3001, WorkLocationId = 3004, CurrentLocationId = 3001 },
+            new AgentTravel
+            {
+                RouteLocationIds = new[] { 3001, 3003, 3004 },
+                TotalTravelMinutes = 25,
+                Mode = AgentTravelMode.AtHome
+            },
+            new AgentState { CurrentActionHash = 1002 },
+            Tags.Get<Tier1LodTag>());
+        var root = new SystemRoot(store) { clock, new CommutingSystem(catalog, clock.ClockEntity) };
+
+        AdvanceMinutes(clock, root, 6 * SimulationDefaults.SimulationMinutesPerDay + 600);
+
+        Assert.Equal(AgentTravelMode.AtHome, entity.GetComponent<AgentTravel>().Mode);
+        Assert.Equal(3001, entity.GetComponent<AgentLocation>().CurrentLocationId);
+    }
+
+    [Fact]
+    public void SpawnerRejectsAssignmentsWhenNoHomeToWorkRouteExists()
+    {
+        using var directory = TestContent.CreateDirectory();
+        TestContent.CopyCatalogFiles(directory.RootPath);
+        File.WriteAllText(Path.Combine(directory.RootPath, "world.json"),
+            "{" +
+            "\"locations\":[" +
+            "{\"id\":\"home\",\"name\":\"Home\",\"hash\":1,\"type\":\"residential\"}," +
+            "{\"id\":\"office\",\"name\":\"Office\",\"hash\":2,\"type\":\"office\"}," +
+            "{\"id\":\"transit\",\"name\":\"Transit\",\"hash\":3,\"type\":\"transit\"}," +
+            "{\"id\":\"retail\",\"name\":\"Retail\",\"hash\":4,\"type\":\"retail\"}]," +
+            "\"connections\":[{\"from\":\"office\",\"to\":\"transit\",\"travelMinutes\":5}]}" );
+
+        var catalog = ContentCatalog.Load(directory.RootPath);
+        var store = new EntityStore();
+        Assert.Throws<InvalidDataException>(() =>
+            new AgentSpawner(catalog).Spawn(store, 1, new Random(1)));
+        Assert.Equal(0, store.Query<Identity>().Count);
     }
 
     [Fact]
@@ -194,6 +340,33 @@ public sealed class SimulationTests
     }
 
     [Fact]
+    public void CatalogRejectsInvalidJobSchedule()
+    {
+        using var directory = TestContent.CreateDirectory();
+        TestContent.CopyCatalogFiles(directory.RootPath);
+        File.WriteAllText(Path.Combine(directory.RootPath, "jobs.json"),
+            "[{\"id\":\"invalid\",\"name\":\"Invalid\",\"hash\":1,\"workStartMinute\":900,\"workEndMinute\":600,\"workDays\":[1],\"workplaceType\":\"office\"}]" );
+
+        Assert.Throws<InvalidDataException>(() => ContentCatalog.Load(directory.RootPath));
+    }
+
+    [Fact]
+    public void CatalogRejectsWorldConnectionsWithUnknownEndpoints()
+    {
+        using var directory = TestContent.CreateDirectory();
+        TestContent.CopyCatalogFiles(directory.RootPath);
+        File.WriteAllText(Path.Combine(directory.RootPath, "world.json"),
+            "{" +
+            "\"locations\":[" +
+            "{\"id\":\"home\",\"name\":\"Home\",\"hash\":1,\"type\":\"residential\"}," +
+            "{\"id\":\"office\",\"name\":\"Office\",\"hash\":2,\"type\":\"office\"}," +
+            "{\"id\":\"retail\",\"name\":\"Retail\",\"hash\":3,\"type\":\"retail\"}]," +
+            "\"connections\":[{\"from\":\"home\",\"to\":\"missing\",\"travelMinutes\":5}]}" );
+
+        Assert.Throws<InvalidDataException>(() => ContentCatalog.Load(directory.RootPath));
+    }
+
+    [Fact]
     public void CatalogRejectsInvalidTraitPrevalence()
     {
         using var directory = TestContent.CreateDirectory();
@@ -270,12 +443,19 @@ public sealed class SimulationTests
         public static void CopyCatalogFiles(string directory)
         {
             var source = System.IO.Path.Combine(AppContext.BaseDirectory, "data");
-            foreach (var fileName in new[] { "actions.json", "factions.json", "traits.json", "agent-schema.json" })
+            foreach (var fileName in new[] { "actions.json", "factions.json", "traits.json", "agent-schema.json", "jobs.json", "world.json" })
             {
                 File.Copy(System.IO.Path.Combine(source, fileName), System.IO.Path.Combine(directory, fileName));
             }
         }
 
         public void Dispose() => Directory.Delete(RootPath, recursive: true);
+    }
+
+    private static void AdvanceMinutes(WorldClockSystem clock, SystemRoot root, int minutes)
+    {
+        clock.Advance(minutes * SimulationDefaults.RealSecondsPerSimulationDay /
+            SimulationDefaults.SimulationMinutesPerDay);
+        root.Update(default);
     }
 }

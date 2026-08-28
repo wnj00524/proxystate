@@ -33,6 +33,29 @@ public struct Psychology : IComponent {
 public struct AgentState : IComponent {
     public int CurrentActionHash;  // Hash supplied by data/actions.json.
 }
+
+public struct WorldTime : IComponent {
+    public double ElapsedSimulationSeconds;
+    public double DeltaSimulationSeconds;
+}
+
+public struct AgentLocation : IComponent {
+    public int HomeLocationId;
+    public int WorkLocationId;
+    public int CurrentLocationId;
+}
+
+public enum AgentTravelMode : byte {
+    AtHome, TravellingToWork, AtWork, TravellingHome
+}
+
+public struct AgentTravel : IComponent {
+    public int[] RouteLocationIds;
+    public int TotalTravelMinutes;
+    public int RoutePosition;
+    public float RemainingTravelMinutes;
+    public AgentTravelMode Mode;
+}
 ```
 
 `AgentAttributeSchema` loads the ordered numeric definitions from
@@ -45,6 +68,17 @@ Binary attributes are traits defined in `data/traits.json`. Their unique positiv
 single-bit values are combined in `Psychology.TraitMask`; `prevalence` controls the
 independent probability that a generated agent has each trait. The `long` mask
 currently supports up to 63 positive single-bit traits.
+
+`Identity.OccupationId` stores the stable hash of the agent's assigned job. Jobs
+are loaded from `data/jobs.json`; each job defines an integer start and end
+minute, a set of workdays from 1 through 7, and the required workplace type.
+
+World locations are loaded from `data/world.json` as typed nodes connected by
+bidirectional edges. Each location has a stable integer hash, and each edge
+has a positive travel duration in in-world minutes. `WorldTopology` validates
+the graph and calculates deterministic shortest-time routes. Spawned agents
+store their home, workplace, current location, and route in the location and
+travel components above.
 
 ### 2.2 The Social Graph (Edge Entities)
 
@@ -64,6 +98,3 @@ public struct EdgeData : IComponent {
 }
 
 ```
-
----
-a

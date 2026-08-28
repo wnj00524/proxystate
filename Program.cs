@@ -21,9 +21,12 @@ public static class Program
         // accepts Random explicitly so tests and future replay tools can inject one.
         spawner.Spawn(store, SimulationDefaults.AgentCount, new Random());
 
+        var clock = new WorldClockSystem(store);
         var systems = new SystemRoot(store)
         {
-                new FatigueStressSystem(catalog.AgentAttributes)
+            clock,
+            new CommutingSystem(catalog, clock.ClockEntity),
+            new FatigueStressSystem(catalog.AgentAttributes)
         };
 
         Raylib.InitWindow(1280, 720, "Proxy State - Intelligence Terminal");
@@ -37,6 +40,7 @@ public static class Program
             {
                 // Simulation runs before rendering so the frame presents the
                 // state produced by the current ECS tick.
+                clock.Advance(Raylib.GetFrameTime());
                 systems.Update(default);
 
                 Raylib.BeginDrawing();

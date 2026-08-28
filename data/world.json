@@ -1,0 +1,15 @@
+{
+  "locations": [
+    { "id": "north-homes", "name": "North Homes", "hash": 3001, "type": "residential" },
+    { "id": "south-homes", "name": "South Homes", "hash": 3002, "type": "residential" },
+    { "id": "town-square", "name": "Town Square", "hash": 3003, "type": "transit" },
+    { "id": "civic-offices", "name": "Civic Offices", "hash": 3004, "type": "office" },
+    { "id": "market-street", "name": "Market Street", "hash": 3005, "type": "retail" }
+  ],
+  "connections": [
+    { "from": "north-homes", "to": "town-square", "travelMinutes": 15 },
+    { "from": "south-homes", "to": "town-square", "travelMinutes": 12 },
+    { "from": "town-square", "to": "civic-offices", "travelMinutes": 10 },
+    { "from": "town-square", "to": "market-street", "travelMinutes": 8 }
+  ]
+}

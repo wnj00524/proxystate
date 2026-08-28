@@ -1,0 +1,20 @@
+[
+  {
+    "id": "office-worker",
+    "name": "Office Worker",
+    "hash": 2001,
+    "workStartMinute": 480,
+    "workEndMinute": 960,
+    "workDays": [1, 2, 3, 4, 5],
+    "workplaceType": "office"
+  },
+  {
+    "id": "shopkeeper",
+    "name": "Shopkeeper",
+    "hash": 2002,
+    "workStartMinute": 600,
+    "workEndMinute": 1080,
+    "workDays": [1, 2, 3, 4, 5, 6],
+    "workplaceType": "retail"
+  }
+]

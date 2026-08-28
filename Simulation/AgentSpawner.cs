@@ -6,11 +6,13 @@ public sealed class AgentSpawner
 {
     private readonly ContentCatalog _catalog;
     private readonly AgentAttributeSchema _schema;
+    private readonly WorldTopology _world;
 
     public AgentSpawner(ContentCatalog catalog)
     {
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         _schema = catalog.AgentAttributes;
+        _world = catalog.World;
     }
 
     public int Spawn(EntityStore store, int count, Random random)
@@ -19,13 +21,26 @@ public sealed class AgentSpawner
         ArgumentNullException.ThrowIfNull(random);
         ArgumentOutOfRangeException.ThrowIfNegative(count);
 
+        var assignments = new List<AgentWorldAssignment>(count);
         for (var index = 0; index < count; index++)
+        {
+            var job = _catalog.Jobs[random.Next(_catalog.Jobs.Count)];
+            var home = ChooseLocation(random, SimulationDefaults.ResidentialLocationType);
+            var workplace = ChooseLocation(random, job.WorkplaceType);
+            var route = _world.FindShortestRoute(home.Hash, workplace.Hash)
+                ?? throw new InvalidDataException(
+                    $"No route exists from residential location '{home.Id}' to workplace type '{job.WorkplaceType}'.");
+
+            assignments.Add(new AgentWorldAssignment(job, home, workplace, route));
+        }
+
+        foreach (var assignment in assignments)
         {
             var entity = store.CreateEntity(
                 new Identity
                 {
                     NameId = random.Next(),
-                    OccupationId = random.Next()
+                    OccupationId = assignment.Job.Hash
                 },
                 new PoliticalAlignment
                 {
@@ -43,6 +58,20 @@ public sealed class AgentSpawner
                 {
                     CurrentActionHash = _catalog.Actions[random.Next(_catalog.Actions.Count)].Hash
                 },
+                new AgentLocation
+                {
+                    HomeLocationId = assignment.Home.Hash,
+                    WorkLocationId = assignment.Workplace.Hash,
+                    CurrentLocationId = assignment.Home.Hash
+                },
+                new AgentTravel
+                {
+                    RouteLocationIds = assignment.Route.LocationIds.ToArray(),
+                    TotalTravelMinutes = assignment.Route.TravelMinutes,
+                    RoutePosition = 0,
+                    RemainingTravelMinutes = 0f,
+                    Mode = AgentTravelMode.AtHome
+                },
                 Tags.Get<Tier1LodTag>());
 
             // Entity creation is the only structural operation in this loop.
@@ -50,6 +79,23 @@ public sealed class AgentSpawner
         }
 
         return count;
+    }
+
+    private sealed record AgentWorldAssignment(
+        JobDefinition Job,
+        WorldLocationDefinition Home,
+        WorldLocationDefinition Workplace,
+        WorldRoute Route);
+
+    private WorldLocationDefinition ChooseLocation(Random random, string type)
+    {
+        var locations = _world.GetLocationsByType(type);
+        if (locations.Count == 0)
+        {
+            throw new InvalidDataException($"No world location is configured for type '{type}'.");
+        }
+
+        return locations[random.Next(locations.Count)];
     }
 
     private float[] CreateAttributeValues(Random random)
