@@ -1,0 +1,6 @@
+[
+  { "id": "brave", "name": "Brave", "bit": 1 },
+  { "id": "chaste", "name": "Chaste", "bit": 2 },
+  { "id": "greedy", "name": "Greedy", "bit": 4 },
+  { "id": "paranoid", "name": "Paranoid", "bit": 8 }
+]

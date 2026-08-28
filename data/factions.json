@@ -1,0 +1,4 @@
+[
+  { "id": "blue", "name": "Blue", "factionId": 0 },
+  { "id": "red", "name": "Red", "factionId": 1 }
+]

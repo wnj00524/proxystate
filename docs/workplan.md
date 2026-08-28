@@ -1,12 +1,12 @@
 # Development Milestones for Coding Agent
 
 ## Milestone 1: The Core Framework & Dummy Simulation
-- [ ] Set up a .NET 8 Console Application project.
-- [ ] Install NuGet packages: Friflo.Engine.ECS, Raylib-cs, rlImGui-cs.
-- [ ] Implement the Program.cs bootstrapper as defined in #3. Application Bootstrapper (Raylib + ImGui) of agents.md.
-- [ ] Implement the struct definitions from Section 2.
-- [ ] Write a spawner function to instantiate 1,000 dummy entities with randomized stats and traits.
-- [ ] Write a basic Friflo System that slowly increases Fatigue and Stress on all entities and resets them when they hit 100.
+- [x] Set up a .NET 8 Console Application project.
+- [x] Install NuGet packages: Friflo.Engine.ECS, Raylib-cs, rlImGui-cs.
+- [x] Implement the Program.cs bootstrapper as defined in #3. Application Bootstrapper (Raylib + ImGui) of agents.md.
+- [x] Implement the struct definitions from Section 2.
+- [x] Write a spawner function to instantiate 1,000 dummy entities with randomized stats and traits.
+- [x] Write a basic Friflo System that slowly increases Fatigue and Stress on all entities and resets them when they hit 100.
 
 ## Milestone 2: Social Graph & Bitwise Discovery
 - [ ] Implement the EdgeData relationship entities.

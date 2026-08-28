@@ -1,0 +1,5 @@
+[
+  { "id": "work", "name": "Work", "hash": 1001 },
+  { "id": "rest", "name": "Rest", "hash": 1002 },
+  { "id": "socialize", "name": "Socialize", "hash": 1003 }
+]
