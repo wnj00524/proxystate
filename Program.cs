@@ -27,7 +27,8 @@ public static class Program
         {
             clock,
             new CommutingSystem(catalog, clock.ClockEntity),
-            new FatigueStressSystem(catalog.AgentAttributes)
+            new FatigueStressSystem(catalog.AgentAttributes),
+            new InteractionSystem(catalog, new Random())
         };
 
         Raylib.InitWindow(1280, 720, "Proxy State - Intelligence Terminal");

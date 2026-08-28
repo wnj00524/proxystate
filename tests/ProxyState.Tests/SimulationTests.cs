@@ -20,6 +20,7 @@ public sealed class SimulationTests
             typeof(PoliticalAlignment),
             typeof(AgentAttributes),
             typeof(Psychology),
+            typeof(EdgeData),
             typeof(AgentState),
             typeof(WorldTime),
             typeof(AgentLocation),
@@ -38,6 +39,155 @@ public sealed class SimulationTests
         Assert.False(DebugMode.IsEnabled(new[] { "--debug" }));
         Assert.True(DebugMode.IsEnabled(new[] { "-debug" }));
         Assert.True(DebugMode.IsEnabled(new[] { "-DEBUG" }));
+    }
+
+    [Fact]
+    public void SpawnerCreatesFiveUniqueBidirectionalRelationshipsPerAgent()
+    {
+        var catalog = LoadCatalog();
+        var store = new EntityStore();
+        new AgentSpawner(catalog).Spawn(store, 10, new Random(123));
+
+        var agents = store.Query<Identity>().Entities.ToArray();
+        var edges = store.Query<EdgeData>().Entities
+            .Select(entity => entity.GetComponent<EdgeData>())
+            .ToArray();
+
+        Assert.Equal(10 * SimulationDefaults.SocialRelationshipsPerAgent, edges.Length);
+        foreach (var agent in agents)
+        {
+            var outgoing = edges.Where(edge => edge.Source == agent).ToArray();
+            Assert.Equal(5, outgoing.Length);
+            Assert.Equal(5, outgoing.Select(edge => edge.Target).Distinct().Count());
+            Assert.DoesNotContain(outgoing, edge => edge.Target == agent);
+
+            foreach (var edge in outgoing)
+            {
+                Assert.Contains(edges, reciprocal =>
+                    reciprocal.Source == edge.Target && reciprocal.Target == edge.Source);
+            }
+        }
+
+        Assert.All(edges, edge =>
+        {
+            Assert.Equal(0f, edge.Affinity);
+            Assert.Equal(0L, edge.KnownTraitMask);
+            Assert.Equal(0, edge.KnownStatsMask);
+            Assert.Equal(0, edge.KnownPoliticalMask);
+        });
+    }
+
+    [Fact]
+    public void SocialGraphHandlesPopulationsSmallerThanSix()
+    {
+        var catalog = LoadCatalog();
+        var oneAgentStore = new EntityStore();
+        var twoAgentStore = new EntityStore();
+
+        new AgentSpawner(catalog).Spawn(oneAgentStore, 1, new Random(1));
+        new AgentSpawner(catalog).Spawn(twoAgentStore, 2, new Random(1));
+
+        Assert.Empty(oneAgentStore.Query<EdgeData>().Entities);
+        Assert.Equal(2, twoAgentStore.Query<EdgeData>().Count);
+    }
+
+    [Fact]
+    public void SeededSocialGraphGenerationIsDeterministic()
+    {
+        var catalog = LoadCatalog();
+        var firstStore = new EntityStore();
+        var secondStore = new EntityStore();
+        new AgentSpawner(catalog).Spawn(firstStore, 10, new Random(42));
+        new AgentSpawner(catalog).Spawn(secondStore, 10, new Random(42));
+
+        var firstShape = RelationshipShape(firstStore);
+        var secondShape = RelationshipShape(secondStore);
+
+        Assert.Equal(firstShape, secondShape);
+    }
+
+    [Fact]
+    public void InteractionSystemWaitsForItsConfiguredInterval()
+    {
+        var catalog = LoadCatalog();
+        var store = new EntityStore();
+        var source = CreateAgent(store, catalog, perception: 100f, willpower: 1f, traitMask: 0L);
+        var target = CreateAgent(store, catalog, perception: 1f, willpower: 1f, traitMask: 1L);
+        var edgeEntity = store.CreateEntity(new EdgeData { Source = source, Target = target });
+        var system = new InteractionSystem(catalog, new SequenceRandom(100, 1, 0), intervalTicks: 2);
+        var root = new SystemRoot(store) { system };
+
+        root.Update(default);
+        Assert.Equal(0L, edgeEntity.GetComponent<EdgeData>().KnownTraitMask);
+
+        root.Update(default);
+        Assert.Equal(1L, edgeEntity.GetComponent<EdgeData>().KnownTraitMask);
+    }
+
+    [Fact]
+    public void SuccessfulDiscoveryIsDirectionalAndUpdatesNormalizedAffinity()
+    {
+        var catalog = LoadCatalog();
+        var store = new EntityStore();
+        var source = CreateAgent(store, catalog, perception: 100f, willpower: 1f, traitMask: 0L);
+        var target = CreateAgent(store, catalog, perception: 1f, willpower: 1f, traitMask: 1L | 4L);
+        var forward = store.CreateEntity(new EdgeData { Source = source, Target = target });
+        var reverse = store.CreateEntity(new EdgeData { Source = target, Target = source });
+        var root = new SystemRoot(store)
+        {
+            new InteractionSystem(catalog, new SequenceRandom(100, 1, 0), intervalTicks: 1)
+        };
+
+        root.Update(default);
+
+        Assert.Equal(1L, forward.GetComponent<EdgeData>().KnownTraitMask);
+        Assert.Equal(25f, forward.GetComponent<EdgeData>().Affinity);
+        Assert.Equal(0L, reverse.GetComponent<EdgeData>().KnownTraitMask);
+        Assert.Equal(0f, reverse.GetComponent<EdgeData>().Affinity);
+    }
+
+    [Fact]
+    public void InteractionSystemDoesNotRevealAlreadyKnownOrUnknownTraits()
+    {
+        var catalog = LoadCatalog();
+        var store = new EntityStore();
+        var source = CreateAgent(store, catalog, perception: 100f, willpower: 1f, traitMask: 0L);
+        var target = CreateAgent(store, catalog, perception: 1f, willpower: 1f, traitMask: 1L);
+        var edgeEntity = store.CreateEntity(new EdgeData
+        {
+            Source = source,
+            Target = target,
+            KnownTraitMask = 1L
+        });
+        var root = new SystemRoot(store)
+        {
+            new InteractionSystem(catalog, new SequenceRandom(100, 1), intervalTicks: 1)
+        };
+
+        root.Update(default);
+
+        var edge = edgeEntity.GetComponent<EdgeData>();
+        Assert.Equal(1L, edge.KnownTraitMask);
+        Assert.Equal(25f, edge.Affinity);
+        Assert.Equal(0L, edge.KnownTraitMask & ~catalog.AllTraitBits);
+    }
+
+    [Fact]
+    public void ParanoidTargetsCanDefeatAnOtherwiseSuccessfulDiscoveryRoll()
+    {
+        var catalog = LoadCatalog();
+        var store = new EntityStore();
+        var source = CreateAgent(store, catalog, perception: 1f, willpower: 1f, traitMask: 0L);
+        var target = CreateAgent(store, catalog, perception: 1f, willpower: 1f, traitMask: 1L | 8L);
+        var edgeEntity = store.CreateEntity(new EdgeData { Source = source, Target = target });
+        var root = new SystemRoot(store)
+        {
+            new InteractionSystem(catalog, new SequenceRandom(2, 100), intervalTicks: 1)
+        };
+
+        root.Update(default);
+
+        Assert.Equal(0L, edgeEntity.GetComponent<EdgeData>().KnownTraitMask);
     }
 
     [Fact]
@@ -484,6 +634,76 @@ public sealed class SimulationTests
         var updated = entity.GetComponent<AgentAttributes>().Values;
         Assert.Equal(10f, updated[catalog.AgentAttributes.GetIndex("fatigue")]);
         Assert.Equal(20f, updated[catalog.AgentAttributes.GetIndex("stress")]);
+    }
+
+    private static Entity CreateAgent(
+        EntityStore store,
+        ContentCatalog catalog,
+        float perception,
+        float willpower,
+        long traitMask)
+    {
+        var values = catalog.AgentAttributes.Definitions
+            .Select(definition => definition.Average)
+            .ToArray();
+        values[catalog.AgentAttributes.GetIndex("perception")] = perception;
+        values[catalog.AgentAttributes.GetIndex("willpower")] = willpower;
+        return store.CreateEntity(
+            new AgentAttributes { Values = values },
+            new Psychology { TraitMask = traitMask });
+    }
+
+    private static string[] RelationshipShape(EntityStore store)
+    {
+        var agents = store.Query<Identity>().Entities.ToArray();
+        var agentIndexes = agents
+            .Select((agent, index) => (agent, index))
+            .ToDictionary(item => item.agent, item => item.index);
+
+        return store.Query<EdgeData>().Entities
+            .Select(entity => entity.GetComponent<EdgeData>())
+            .Select(edge => $"{agentIndexes[edge.Source]}->{agentIndexes[edge.Target]}")
+            .ToArray();
+    }
+
+    private sealed class SequenceRandom : Random
+    {
+        private readonly int[] _values;
+        private int _index;
+
+        public SequenceRandom(params int[] values) => _values = values;
+
+        public override int Next(int maxValue)
+        {
+            if (maxValue <= 0)
+            {
+                return 0;
+            }
+
+            return Math.Abs(NextValue()) % maxValue;
+        }
+
+        public override int Next(int minValue, int maxValue)
+        {
+            if (minValue >= maxValue)
+            {
+                return minValue;
+            }
+
+            return Math.Clamp(NextValue(), minValue, maxValue - 1);
+        }
+
+        private int NextValue()
+        {
+            if (_values.Length == 0)
+            {
+                return 0;
+            }
+
+            var value = _values[Math.Min(_index, _values.Length - 1)];
+            _index++;
+            return value;
+        }
     }
 
     private sealed class TestContent : IDisposable

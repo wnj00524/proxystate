@@ -99,6 +99,21 @@ public struct EdgeData : IComponent {
 
 ```
 
+`SocialGraphBuilder` creates five unique peers for each agent using the
+injected random source. Each peer relationship is stored as two directed edge
+entities, one in each direction, with independent knowledge masks. Populations
+smaller than six receive the largest valid graph degree for their size. Self-links
+and duplicate peers are not created.
+
+`InteractionSystem` processes every edge on the configured interval (60 ECS
+ticks by default). A source's d100 plus `perception` competes with the target's
+d100 plus `willpower`; a target with the `paranoid` trait receives a 20-point
+willpower bonus. A successful contest reveals one present, previously unknown
+trait by OR-ing its bit into `KnownTraitMask`. The mask records confirmed
+present traits only, so confirmed absence is not represented. Affinity is the
+normalized percentage of configured traits shared by the target and the
+source's known mask.
+
 ### 2.3 Debug Inspection Snapshots
 
 Debug inspection uses immutable copies rather than exposing `Entity` instances to ImGui. `DebugAgentSnapshot` contains the scalar identity, occupation, faction, action, and trait-mask values plus read-only collections for schema-defined attributes, every configured trait's present/absent state, named locations, and the travel route/state. `DebugSnapshotBuilder` is the ECS boundary that creates these snapshots; `DebugWindow` renders only the copied values.

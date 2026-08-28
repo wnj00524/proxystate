@@ -25,6 +25,18 @@ public struct Psychology : IComponent
     public long TraitMask;
 }
 
+// Social relationships are first-class entities so each direction can carry
+// its own intelligence state about the other agent.
+public struct EdgeData : IComponent
+{
+    public Entity Source;
+    public Entity Target;
+    public float Affinity;
+    public long KnownTraitMask;
+    public byte KnownStatsMask;
+    public byte KnownPoliticalMask;
+}
+
 public struct AgentState : IComponent
 {
     public int CurrentActionHash;
@@ -87,4 +99,8 @@ public static class SimulationDefaults
     public const int SimulationMinutesPerDay = 1_440;
     public const int DaysPerWeek = 7;
     public const string ResidentialLocationType = "residential";
+    public const int SocialRelationshipsPerAgent = 5;
+    public const int InteractionIntervalTicks = 60;
+    public const int InteractionD100Sides = 100;
+    public const int ParanoidWillpowerBonus = 20;
 }

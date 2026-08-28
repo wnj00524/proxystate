@@ -14,9 +14,13 @@
 
 **Goal:** Handle target interrogation/surveillance based on Perception vs Willpower.
 
-* When `Source` interacts with `Target`, calculate the schema-defined `perception` value vs the schema-defined `willpower` value (modified by Target's `Paranoid` trait).
-* On success, perform bitwise `OR` on `EdgeData.KnownTraitMask`. (e.g., `KnownTraitMask |= 0x0004` to reveal the Greedy trait).
-* Recalculate `Affinity` by checking shared traits: `Target.Psychology.TraitMask & EdgeData.KnownTraitMask`.
+* `SocialGraphBuilder` creates a randomized simple graph with five peers per agent (or the largest valid degree for smaller populations), storing each pair as two directed `EdgeData` entities.
+* `InteractionSystem` runs on every 60th ECS update by default. The interval is injectable for tests and future tuning.
+* Each edge performs an opposed d100 contest: `Source` rolls d100 plus schema-defined `perception`; `Target` rolls d100 plus schema-defined `willpower`, with a 20-point bonus when the target has the `Paranoid` trait.
+* On a source victory, one present and not-yet-known target trait is selected and revealed with bitwise `OR` on `EdgeData.KnownTraitMask` (for example, `KnownTraitMask |= 0x0004`).
+* Reciprocal edges discover independently because each direction owns a separate knowledge mask.
+* Recalculate `Affinity` as the number of shared known trait bits divided by the configured trait count and scaled to `0` through `100`.
+* `KnownStatsMask` and `KnownPoliticalMask` remain reserved and unchanged in this milestone.
 
 ### 4.3 Fatigue and Stress System (Milestone 1)
 

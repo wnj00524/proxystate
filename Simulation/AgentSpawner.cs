@@ -7,12 +7,16 @@ public sealed class AgentSpawner
     private readonly ContentCatalog _catalog;
     private readonly AgentAttributeSchema _schema;
     private readonly WorldTopology _world;
+    private readonly SocialGraphBuilder _socialGraphBuilder;
 
-    public AgentSpawner(ContentCatalog catalog)
+    public AgentSpawner(
+        ContentCatalog catalog,
+        SocialGraphBuilder? socialGraphBuilder = null)
     {
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         _schema = catalog.AgentAttributes;
         _world = catalog.World;
+        _socialGraphBuilder = socialGraphBuilder ?? new SocialGraphBuilder();
     }
 
     public int Spawn(EntityStore store, int count, Random random)
@@ -34,6 +38,7 @@ public sealed class AgentSpawner
             assignments.Add(new AgentWorldAssignment(job, home, workplace, route));
         }
 
+        var agents = new List<Entity>(count);
         foreach (var assignment in assignments)
         {
             var entity = store.CreateEntity(
@@ -75,8 +80,10 @@ public sealed class AgentSpawner
                 Tags.Get<Tier1LodTag>());
 
             // Entity creation is the only structural operation in this loop.
-            _ = entity;
+            agents.Add(entity);
         }
+
+        _socialGraphBuilder.Populate(store, agents, random);
 
         return count;
     }

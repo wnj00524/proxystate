@@ -18,10 +18,10 @@
 - [x] Add unit tests and update ECS, data structure, and project documentation.
 
 ## Milestone 3: Social Graph & Bitwise Discovery
-- [ ] Implement the EdgeData relationship entities.
-- [ ] Assign 5 random relationships (Edge Entities) to each Agent upon generation.
-- [ ] Implement an InteractionSystem that runs every X ticks, forcing an agent to roll Perception to reveal a bit of their target's Psychology.TraitMask.
-- [ ] Update the EdgeData.KnownTraitMask accordingly.
+- [x] Implement the EdgeData relationship entities.
+- [x] Assign 5 random relationships (Edge Entities) to each Agent upon generation.
+- [x] Implement an InteractionSystem that runs every 60 ticks, forcing an agent to roll Perception to reveal a bit of their target's Psychology.TraitMask.
+- [x] Update the EdgeData.KnownTraitMask accordingly.
 
 ## Milestone 4: The ImGui Intelligence Terminal
 - [x] Add opt-in `-debug` mode with a `Debug` window listing all agents and displaying selected agent details through ECS-isolated snapshots.
