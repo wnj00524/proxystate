@@ -1,5 +1,6 @@
 using Friflo.Engine.ECS;
 using Friflo.Engine.ECS.Systems;
+using ProxyState;
 using ProxyState.Simulation;
 using Xunit;
 
@@ -28,6 +29,46 @@ public sealed class SimulationTests
 
         Assert.All(components, type => Assert.True(typeof(IComponent).IsAssignableFrom(type), type.Name));
         Assert.All(tags, type => Assert.True(typeof(ITag).IsAssignableFrom(type), type.Name));
+    }
+
+    [Fact]
+    public void DebugModeOnlyEnablesForTheDebugCommandLineArgument()
+    {
+        Assert.False(DebugMode.IsEnabled(Array.Empty<string>()));
+        Assert.False(DebugMode.IsEnabled(new[] { "--debug" }));
+        Assert.True(DebugMode.IsEnabled(new[] { "-debug" }));
+        Assert.True(DebugMode.IsEnabled(new[] { "-DEBUG" }));
+    }
+
+    [Fact]
+    public void DebugSnapshotContainsCopiedDetailsForEveryAgent()
+    {
+        var catalog = LoadCatalog();
+        var store = new EntityStore();
+        new AgentSpawner(catalog).Spawn(store, 3, new Random(1234));
+
+        var snapshots = DebugSnapshotBuilder.Capture(store, catalog);
+
+        Assert.Equal(3, snapshots.Count);
+        Assert.All(snapshots, snapshot =>
+        {
+            Assert.Equal(catalog.AgentAttributes.Count, snapshot.Attributes.Count);
+            Assert.Equal(catalog.Traits.Count, snapshot.Traits.Count);
+            Assert.Contains(snapshot.OccupationName, catalog.Jobs.Select(job => job.Name));
+            Assert.Contains(snapshot.FactionName, catalog.Factions.Select(faction => faction.Name));
+            Assert.Contains(snapshot.CurrentActionName, catalog.Actions.Select(action => action.Name));
+            Assert.NotEmpty(snapshot.Travel.Route);
+            Assert.NotEmpty(snapshot.CurrentLocation.Name);
+        });
+
+        var entity = store.Query<Identity>().Entities.First();
+        var before = snapshots.Single(snapshot => snapshot.EntityId == entity.Id);
+        var originalValue = before.Attributes[0].Value;
+        var values = entity.GetComponent<AgentAttributes>().Values;
+        values[0] = originalValue + 10f;
+
+        var after = snapshots.Single(snapshot => snapshot.EntityId == entity.Id);
+        Assert.Equal(originalValue, after.Attributes[0].Value);
     }
 
     [Fact]

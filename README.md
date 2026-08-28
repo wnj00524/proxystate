@@ -11,11 +11,19 @@ clock, networked locations, jobs, commuting, and a fatigue/stress simulation loo
 dotnet run --project ProxyState.csproj
 ```
 
+To enable the development-only agent inspector, pass `-debug`:
+
+```text
+dotnet run --project ProxyState.csproj -- -debug
+```
+
 The application loads numeric agent attributes from `data/agent-schema.json`,
 traits from `data/traits.json`, jobs from `data/jobs.json`, and the location
 network from `data/world.json`. It then opens the Raylib canvas and an ImGui
 placeholder terminal. One in-world day advances in about ten real minutes, and
 agents commute along shortest-time routes between assigned homes and workplaces.
+With debug mode enabled, the `Debug` window lists all agents and shows the full
+copied simulation state for the selected agent.
 
 ## Test
 

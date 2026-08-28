@@ -10,8 +10,9 @@ namespace ProxyState;
 public static class Program
 {
     [STAThread]
-    public static void Main()
+    public static void Main(string[] args)
     {
+        var debugMode = DebugMode.IsEnabled(args);
         var contentDirectory = Path.Combine(AppContext.BaseDirectory, "data");
         var catalog = ContentCatalog.Load(contentDirectory);
         var store = new EntityStore();
@@ -35,6 +36,7 @@ public static class Program
         try
         {
             rlImGui.Setup(true);
+            var debugWindow = debugMode ? new DebugWindow() : null;
 
             while (!Raylib.WindowShouldClose())
             {
@@ -50,6 +52,12 @@ public static class Program
                 ImGui.Begin("Intelligence Dossier");
                 ImGui.Text("Agent data will render here...");
                 ImGui.End();
+                if (debugWindow is not null)
+                {
+                    // Capture immutable values before drawing so the UI never
+                    // reaches into the Ground Truth ECS store directly.
+                    debugWindow.Draw(DebugSnapshotBuilder.Capture(store, catalog));
+                }
                 rlImGui.End();
 
                 Raylib.EndDrawing();

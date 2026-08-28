@@ -24,6 +24,7 @@
 - [ ] Update the EdgeData.KnownTraitMask accordingly.
 
 ## Milestone 4: The ImGui Intelligence Terminal
+- [x] Add opt-in `-debug` mode with a `Debug` window listing all agents and displaying selected agent details through ECS-isolated snapshots.
 - [ ] Create an ImGui window titled "Surveillance Terminal".
 - [ ] Draw a list of all Agents. When the user clicks an Agent, open their "Dossier".
 - [ ] Crucial Security Check: The Dossier UI must ONLY display traits that are unlocked in the Player's Knowledge Mask for that Agent. Use bitwise AND (&) logic. If the mask bit is 0, render "Trait: ???". If 1, render the trait name.

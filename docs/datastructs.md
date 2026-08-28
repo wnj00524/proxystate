@@ -98,3 +98,7 @@ public struct EdgeData : IComponent {
 }
 
 ```
+
+### 2.3 Debug Inspection Snapshots
+
+Debug inspection uses immutable copies rather than exposing `Entity` instances to ImGui. `DebugAgentSnapshot` contains the scalar identity, occupation, faction, action, and trait-mask values plus read-only collections for schema-defined attributes, every configured trait's present/absent state, named locations, and the travel route/state. `DebugSnapshotBuilder` is the ECS boundary that creates these snapshots; `DebugWindow` renders only the copied values.

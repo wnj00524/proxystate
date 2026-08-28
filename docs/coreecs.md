@@ -51,4 +51,13 @@ The system is configured with an optional positive per-tick increase so simulati
 * Begin the reverse route at the scheduled work end and set the agent to rest when home.
 * Agents remain home on non-workdays. Missing routes fail during assignment or raise a clear topology error rather than creating partial agent state.
 
+### 4.6 Debug Agent Inspector
+
+**Goal:** Provide an opt-in development view of the complete simulated agent population.
+
+* Debug mode is enabled only when the process receives the `-debug` command-line argument (case-insensitive).
+* `DebugSnapshotBuilder` copies the current agent component values into immutable, UI-facing snapshots once per frame.
+* The `Debug` ImGui window lists every agent and lets the user select one to inspect identity, faction, job, attributes, all trait states, current action, locations, and travel state.
+* The ImGui layer consumes snapshots only; it never queries or mutates the Ground Truth ECS store.
+
 ---
