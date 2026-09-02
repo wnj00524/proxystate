@@ -178,9 +178,12 @@ public static class DebugSnapshotBuilder
         var attributes = entity.GetComponent<AgentAttributes>();
         var psychology = entity.GetComponent<Psychology>();
         var state = entity.GetComponent<AgentState>();
-        var activity = entity.GetComponent<ActivityState>();
+        // Tier 3 agents deliberately shed detailed activity and travel state. The
+        // debug viewer must inspect that coarse representation without promoting
+        // the entity or assuming those components are still materialized.
+        var activity = entity.HasComponent<ActivityState>() ? entity.GetComponent<ActivityState>() : default;
         var location = entity.GetComponent<AgentLocation>();
-        var travel = entity.GetComponent<AgentTravel>();
+        var travel = entity.HasComponent<AgentTravel>() ? entity.GetComponent<AgentTravel>() : default;
         var intention = entity.HasComponent<IntentionState>() ? entity.GetComponent<IntentionState>() : default;
         var decision = entity.HasComponent<DecisionState>() ? entity.GetComponent<DecisionState>() : default;
         var lod = entity.HasComponent<AgentLodState>() ? entity.GetComponent<AgentLodState>() : new AgentLodState
@@ -210,7 +213,7 @@ public static class DebugSnapshotBuilder
             DescribeLocation(location.WorkLocationId, catalog.World),
             DescribeLocation(location.CurrentLocationId, catalog.World),
             new DebugTravelSnapshot(
-                travel.RouteLocationIds.Select(id => DescribeLocation(id, catalog.World)).ToArray().AsReadOnly(),
+                (travel.RouteLocationIds ?? []).Select(id => DescribeLocation(id, catalog.World)).ToArray().AsReadOnly(),
                 travel.TotalTravelMinutes, travel.RoutePosition, travel.RemainingTravelMinutes, travel.Mode),
             CopyCoordination(entity), CopyDecisions(catalog, intention, decision),
             memberships.OrderBy(item => item.NetworkEntityId).ToArray().AsReadOnly(),
