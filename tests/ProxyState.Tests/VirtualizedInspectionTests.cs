@@ -68,6 +68,29 @@ public sealed class VirtualizedInspectionTests
     }
 
     [Fact]
+    public void DebugProjectionSelectsTierThreeAgentWithoutDetailedComponents()
+    {
+        var catalog = ContentCatalog.Load(Path.Combine(AppContext.BaseDirectory, "data"));
+        var store = new EntityStore();
+        new AgentSpawner(catalog).Spawn(store, 1, 42);
+        var selected = store.Query<Identity>().Entities.First();
+
+        // Tier 3 materialization retains identity and coarse state while shedding
+        // these detailed components; reproduce that boundary without mutating it.
+        selected.RemoveComponent<ActivityState>();
+        selected.RemoveComponent<AgentTravel>();
+        selected.AddTag<Tier3LodTag>();
+        var projection = DebugInspectionProjection.Create(store, catalog);
+
+        projection.Select(selected.Id);
+
+        var snapshot = Assert.IsType<DebugAgentSnapshot>(projection.View.SelectedAgent);
+        Assert.Equal(selected.Id, snapshot.EntityId);
+        Assert.Equal(AgentLodTier.Tier3, snapshot.LodTier);
+        Assert.Empty(snapshot.Travel.Route);
+    }
+
+    [Fact]
     public void LodFieldsRemainDebugOnly()
     {
         var playerNames = typeof(PlayerIntelligenceAgentSnapshot).GetProperties().Select(property => property.Name);
