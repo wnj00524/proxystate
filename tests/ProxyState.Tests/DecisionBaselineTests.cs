@@ -202,7 +202,7 @@ public sealed class DecisionBaselineTests
                     ActivityTypeHash = _catalog.Actions.Single(action => action.Hash == currentAction).Activity.Hash,
                     Phase = ActivityPhase.Performing
                 },
-                new DecisionState { Dirty = true, CooldownActionHashes = new int[3], CooldownUntilMinutes = new long[3] },
+                new DecisionState { Dirty = true,   },
                 Tags.Get<Tier1LodTag>());
             _networkService = new AgentNetworkService(_store, _catalog.Networks);
             _friendNetwork = _networkService.CreateNetwork(_catalog.Networks.GetType("friend-group").Hash, 0, 0);

@@ -106,13 +106,7 @@ public sealed class AgentSpawner
                 {
                     LastConsideredMinute = -1,
                     Dirty = true,
-                    ChangedFacts = FactDependencyMask.All,
-                    CachedScores = new float[_catalog.Intents.Count],
-                    CachedEligibility = new bool[_catalog.Intents.Count],
-                    CachedTargetEntityIds = new int[_catalog.Intents.Count],
-                    CachedTargetLocationIds = new int[_catalog.Intents.Count],
-                    CooldownActionHashes = new int[_catalog.Intents.Count],
-                    CooldownUntilMinutes = new long[_catalog.Intents.Count]
+                    ChangedFacts = FactDependencyMask.All
                 },
                 new AgentLocation
                 {
@@ -192,9 +186,9 @@ public sealed class AgentSpawner
         return locations[random.Next(locations.Count)];
     }
 
-    private float[] CreateAttributeValues(Random random)
+    private AgentAttributeValues CreateAttributeValues(Random random)
     {
-        var values = new float[_schema.Count];
+        var values = new AgentAttributeValues();
         for (var index = 0; index < _schema.Count; index++)
         {
             values[index] = NextBoundedNormal(random, _schema.Definitions[index]);

@@ -67,14 +67,15 @@ public sealed class CoarseRoutineSystem
             throw new InvalidOperationException("A Tier 3 agent references a missing shared coarse profile.");
         var resolvedProfile = profile ?? throw new InvalidOperationException("A coarse profile lookup returned no profile.");
         var values = agent.GetComponent<AgentAttributes>().Values;
-        resolvedProfile.ForEachOverlap(state.LastCoarseSimulatedMinute, currentMinute, (segment, minutes) => ApplyEffects(values, segment, minutes));
+        resolvedProfile.ForEachOverlap(state.LastCoarseSimulatedMinute, currentMinute, (segment, minutes) => ApplyEffects(ref values, segment, minutes));
+        agent.GetComponent<AgentAttributes>().Values = values;
         var current = resolvedProfile.GetSegment(currentMinute - 1);
         ref var location = ref agent.GetComponent<AgentLocation>();
         location.CurrentLocationId = current.Location == CoarseRoutineLocation.Home ? location.HomeLocationId : location.WorkLocationId;
         state.LastCoarseSimulatedMinute = currentMinute;
     }
 
-    private void ApplyEffects(float[] values, CoarseRoutineInterval segment, int elapsedMinutes)
+    private void ApplyEffects(ref AgentAttributeValues values, CoarseRoutineInterval segment, int elapsedMinutes)
     {
         var intent = _catalog.Intents[segment.IntentIndex];
         foreach (var effect in intent.Effects)

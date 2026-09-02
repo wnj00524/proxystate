@@ -122,8 +122,8 @@ public sealed class Tier2DecisionCadenceTests
                     LastConsideredMinute = -1,
                     Dirty = true,
                     ChangedFacts = FactDependencyMask.All,
-                    CooldownActionHashes = new int[Catalog.Intents.Count],
-                    CooldownUntilMinutes = new long[Catalog.Intents.Count]
+                    
+                    
                 },
                 Tags.Get<Tier2LodTag, DetailedSimulationTag>());
             _decisions = new SystemRoot(_store) { new AgentDecisionSystem(_store, Catalog, _clock) };

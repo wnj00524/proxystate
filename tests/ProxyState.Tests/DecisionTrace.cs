@@ -24,7 +24,7 @@ public sealed record DecisionTrace(
         var travel = entity.GetComponent<AgentTravel>();
         var activity = entity.GetComponent<ActivityState>();
         var decision = entity.GetComponent<DecisionState>();
-        var cooldowns = decision.CooldownActionHashes
+        var cooldowns = ((ReadOnlySpan<int>)decision.CooldownActionHashes).ToArray()
             .Select((hash, index) => (hash, until: decision.CooldownUntilMinutes[index]))
             .Where(item => item.hash != 0)
             .ToDictionary(item => item.hash, item => item.until);

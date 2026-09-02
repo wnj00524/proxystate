@@ -121,7 +121,7 @@ public sealed class CoordinationSystem : QuerySystem<CoordinationState>
 
             var scoreIndex = intent.RuntimeIndex;
             var decision = initiator.GetComponent<DecisionState>();
-            if (decision.CachedScores is not null && scoreIndex < decision.CachedScores.Length)
+            if (scoreIndex < 32)
                 coordination.Utility = decision.CachedScores[scoreIndex];
             var participantOffer = EvaluateParticipantOffer(initiator, participant, intent, targets, time);
             if (!participantOffer.Eligible)
@@ -321,9 +321,8 @@ public sealed class CoordinationSystem : QuerySystem<CoordinationState>
     {
         if (untilMinute <= 0) return;
         ref var state = ref agent.GetComponent<DecisionState>();
-        if (state.CooldownActionHashes is null || state.CooldownUntilMinutes is null) return;
-        var index = Array.IndexOf(state.CooldownActionHashes, actionHash);
-        if (index < 0) index = Array.IndexOf(state.CooldownActionHashes, 0);
+        var index = ((ReadOnlySpan<int>)state.CooldownActionHashes).IndexOf(actionHash);
+        if (index < 0) index = ((ReadOnlySpan<int>)state.CooldownActionHashes).IndexOf(0);
         if (index < 0) return;
         state.CooldownActionHashes[index] = actionHash;
         state.CooldownUntilMinutes[index] = untilMinute;

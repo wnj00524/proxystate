@@ -220,10 +220,14 @@ public sealed class AgentLodService : IDisposable
     }
 
     /// <summary>Refreshes POI edges touched by a supported hierarchy mutation.</summary>
-    public void NotifyNetworkMutation(params Entity[] affectedAgents)
+    public void NotifyNetworkMutation(params ReadOnlySpan<Entity> affectedAgents)
     {
         if (!_initialized) return;
-        var affected = affectedAgents.Where(IsLiveAgent).Select(agent => agent.Id).ToHashSet();
+        var affected = new HashSet<int>();
+        foreach (var agent in affectedAgents)
+        {
+            if (IsLiveAgent(agent)) affected.Add(agent.Id);
+        }
         foreach (var poiId in _pointsOfInterest.Order().ToArray())
         {
             if (!_agents.TryGetValue(poiId, out var poi) || !IsLiveAgent(poi)) continue;
@@ -393,7 +397,7 @@ public sealed class AgentLodService : IDisposable
         var fallback = _catalog.Intents.Fallback;
         if (!entity.HasComponent<IntentionState>()) entity.AddComponent(new IntentionState { ActionHash = fallback.Hash });
         if (!entity.HasComponent<ActivityState>()) entity.AddComponent(new ActivityState { ActionHash = fallback.Hash, ActivityTypeHash = fallback.Activity.Hash, Phase = ActivityPhase.Performing });
-        if (!entity.HasComponent<DecisionState>()) entity.AddComponent(CreateDecisionState(_catalog.Intents.Count));
+        if (!entity.HasComponent<DecisionState>()) entity.AddComponent(CreateDecisionState());
         if (!entity.HasComponent<CoordinationState>()) entity.AddComponent<CoordinationState>();
         if (!entity.HasComponent<AgentTravel>())
         {
@@ -403,15 +407,9 @@ public sealed class AgentLodService : IDisposable
         }
     }
 
-    private static DecisionState CreateDecisionState(int count) => new()
+    private static DecisionState CreateDecisionState() => new()
     {
         Dirty = true,
-        ChangedFacts = FactDependencyMask.All,
-        CachedScores = new float[count],
-        CachedEligibility = new bool[count],
-        CachedTargetEntityIds = new int[count],
-        CachedTargetLocationIds = new int[count],
-        CooldownActionHashes = new int[count],
-        CooldownUntilMinutes = new long[count]
+        ChangedFacts = FactDependencyMask.All
     };
 }

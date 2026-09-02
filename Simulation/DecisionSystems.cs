@@ -236,11 +236,7 @@ public sealed class AgentDecisionSystem : QuerySystem<Identity, AgentAttributes,
 
     private void EnsureCache(ref DecisionState state)
     {
-        var count = _candidatesByIndex.Length;
-        if (state.CachedScores?.Length == count && state.CachedEligibility?.Length == count &&
-            state.CachedTargetEntityIds?.Length == count && state.CachedTargetLocationIds?.Length == count) return;
-        state.CachedScores = new float[count]; state.CachedEligibility = new bool[count];
-        state.CachedTargetEntityIds = new int[count]; state.CachedTargetLocationIds = new int[count];
+        // Inline arrays are structurally allocated.
     }
 
     private void EnsureDiagnosticCache(ref DecisionState state)
@@ -269,8 +265,7 @@ public sealed class AgentDecisionSystem : QuerySystem<Identity, AgentAttributes,
 
     private static bool IsCoolingDown(int hash, long minute, DecisionState state)
     {
-        if (state.CooldownActionHashes is null || state.CooldownUntilMinutes is null) return false;
-        for (var index = 0; index < state.CooldownActionHashes.Length; index++)
+        for (var index = 0; index < 32; index++)
             if (state.CooldownActionHashes[index] == hash && state.CooldownUntilMinutes[index] > minute) return true;
         return false;
     }
@@ -278,8 +273,8 @@ public sealed class AgentDecisionSystem : QuerySystem<Identity, AgentAttributes,
     private static void SetCooldown(CompiledIntent action, long minute, ref DecisionState state)
     {
         if (action.Controls.CooldownMinutes == 0) return;
-        var index = Array.IndexOf(state.CooldownActionHashes, action.Hash);
-        if (index < 0) index = Array.IndexOf(state.CooldownActionHashes, 0);
+        var index = ((ReadOnlySpan<int>)state.CooldownActionHashes).IndexOf(action.Hash);
+        if (index < 0) index = ((ReadOnlySpan<int>)state.CooldownActionHashes).IndexOf(0);
         if (index < 0) return;
         state.CooldownActionHashes[index] = action.Hash;
         state.CooldownUntilMinutes[index] = minute + action.Controls.CooldownMinutes;
@@ -288,8 +283,8 @@ public sealed class AgentDecisionSystem : QuerySystem<Identity, AgentAttributes,
     internal readonly record struct DecisionResult(int IntentIndex, CompiledIntent Action, bool Eligible,
         float Score, int TargetEntityId, int TargetLocationId);
     internal readonly record struct TargetSelection(int EntityId, int LocationId, float Affinity,
-        float[]? Attributes = null);
-    internal readonly record struct DecisionContext(WorldTime Time, JobDefinition Job, float[] Attributes,
+        AgentAttributeValues? Attributes = null);
+    internal readonly record struct DecisionContext(WorldTime Time, JobDefinition Job, AgentAttributeValues Attributes,
         long TraitMask, AgentLocation Location, AgentTravel Travel);
 
     internal sealed class TargetResolver
@@ -402,9 +397,9 @@ public sealed class AgentDecisionSystem : QuerySystem<Identity, AgentAttributes,
             return left.EntityId.CompareTo(right.EntityId);
         }
 
-        private bool TryReadTarget(int id, out int location, out float[] attributes)
+        private bool TryReadTarget(int id, out int location, out AgentAttributeValues attributes)
         {
-            location = 0; attributes = [];
+            location = 0; attributes = default;
             if (!_indexes.TryGetAgent(id, out var entity) ||
                 !entity.TryGetComponent<AgentLocation>(out var agentLocation) ||
                 !entity.TryGetComponent<AgentAttributes>(out var agentAttributes)) return false;

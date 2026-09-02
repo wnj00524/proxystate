@@ -569,7 +569,7 @@ public sealed class SimulationTests
             new AgentState(),
             new IntentionState { ActionHash = 1001, TargetLocationId = 3004 },
             new ActivityState { ActionHash = 1002 },
-            new DecisionState { CooldownActionHashes = new int[3], CooldownUntilMinutes = new long[3] },
+            new DecisionState {   },
             Tags.Get<Tier1LodTag>());
         var commuting = new IntentExecutionSystem(store, catalog, clock.ClockEntity);
         var root = new SystemRoot(store) { clock, commuting };
@@ -611,7 +611,7 @@ public sealed class SimulationTests
             new AgentState(),
         new IntentionState { ActionHash = 1002, TargetLocationId = 3001 },
             new ActivityState { ActionHash = 1002 },
-            new DecisionState { CooldownActionHashes = new int[3], CooldownUntilMinutes = new long[3] },
+            new DecisionState {   },
             Tags.Get<Tier1LodTag>());
         var root = new SystemRoot(store) { clock, new IntentExecutionSystem(store, catalog, clock.ClockEntity) };
 
@@ -636,7 +636,7 @@ public sealed class SimulationTests
             new AgentTravel { RouteLocationIds = Array.Empty<int>() },
             new IntentionState { ActionHash = 1003, TargetEntityId = target.Id },
             new ActivityState(),
-            new DecisionState { CooldownActionHashes = new int[3], CooldownUntilMinutes = new long[3] },
+            new DecisionState {   },
             Tags.Get<Tier1LodTag>());
         var root = new SystemRoot(store) { clock, new IntentExecutionSystem(store, catalog, clock.ClockEntity) };
 
@@ -730,7 +730,7 @@ public sealed class SimulationTests
             new AgentState { SecretStateHash = 1 },
             new IntentionState { ActionHash = 1001, TargetLocationId = 3004 },
             new ActivityState { ActionHash = 1002 },
-            new DecisionState { CooldownActionHashes = new int[3], CooldownUntilMinutes = new long[3] },
+            new DecisionState {   },
             Tags.Get<Tier1LodTag>());
         var root = new SystemRoot(store) { clock, new IntentExecutionSystem(store, catalog, clock.ClockEntity) };
 

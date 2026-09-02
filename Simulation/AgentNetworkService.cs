@@ -239,9 +239,10 @@ public sealed class AgentNetworkService : IDisposable
 
     // Network membership, role, and hierarchy mutations can change both target
     // availability and an active mutual relation for every member in the group.
-    private static void InvalidateNetworkMembers(Entity network, params Entity[] additionalAgents)
+    private static void InvalidateNetworkMembers(Entity network, params ReadOnlySpan<Entity> additionalAgents)
     {
-        var affected = new HashSet<Entity>(additionalAgents);
+        var affected = new HashSet<Entity>();
+        foreach (var agent in additionalAgents) affected.Add(agent);
         foreach (var link in network.GetIncomingLinks<AgentNetworkMembership>()) affected.Add(link.Entity);
         InvalidateAgents(affected);
     }
@@ -256,10 +257,14 @@ public sealed class AgentNetworkService : IDisposable
         }
     }
 
-    private void NotifyLodNetworkMembers(Entity network, params Entity[] additionalAgents)
+    private void NotifyLodNetworkMembers(Entity network, params ReadOnlySpan<Entity> additionalAgents)
     {
         if (_lodService is null) return;
-        var affected = new HashSet<Entity>(additionalAgents.Where(entity => !entity.IsNull));
+        var affected = new HashSet<Entity>();
+        foreach (var entity in additionalAgents)
+        {
+            if (!entity.IsNull) affected.Add(entity);
+        }
         if (!network.IsNull)
             foreach (var link in network.GetIncomingLinks<AgentNetworkMembership>()) affected.Add(link.Entity);
         _lodService.NotifyNetworkMutation(affected.ToArray());
