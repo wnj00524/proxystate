@@ -361,7 +361,7 @@ public static class DebugSnapshotBuilder
     private static IReadOnlyList<DebugDecisionCandidateSnapshot> CopyDecisions(
         ContentCatalog catalog, IntentionState intention, DecisionState decision)
     {
-        if (decision.CachedScores is null) return Array.Empty<DebugDecisionCandidateSnapshot>();
+        // Inline arrays are never null
         var snapshots = new List<DebugDecisionCandidateSnapshot>();
         foreach (var intent in catalog.Intents.All.Where(intent => !intent.Fallback))
         {
@@ -369,9 +369,9 @@ public static class DebugSnapshotBuilder
             var utility = decision.CachedUtilityContributions?.ElementAtOrDefault(index) ?? Array.Empty<float>();
             var traits = decision.CachedTraitContributions?.ElementAtOrDefault(index) ?? Array.Empty<float>();
             var cooldownUntil = 0L;
-            if (decision.CooldownActionHashes is not null && decision.CooldownUntilMinutes is not null)
+            if (true)
             {
-                var cooldownIndex = Array.IndexOf(decision.CooldownActionHashes, intent.Hash);
+                var cooldownIndex = ((ReadOnlySpan<int>)decision.CooldownActionHashes).IndexOf(intent.Hash);
                 if (cooldownIndex >= 0) cooldownUntil = decision.CooldownUntilMinutes[cooldownIndex];
             }
             snapshots.Add(new DebugDecisionCandidateSnapshot(

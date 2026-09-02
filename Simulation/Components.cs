@@ -147,6 +147,50 @@ public struct ActivityState : IComponent
     public long StartedAtMinute;
 }
 
+[System.Runtime.CompilerServices.InlineArray(32)]
+public struct DecisionFloatArray { 
+    private float _e0; 
+    public int Length => 32;
+    public static implicit operator DecisionFloatArray(float[] values) {
+        var a = new DecisionFloatArray();
+        if (values != null) for (int i=0; i<values.Length && i<32; i++) a[i] = values[i];
+        return a;
+    }
+}
+
+[System.Runtime.CompilerServices.InlineArray(32)]
+public struct DecisionBoolArray { 
+    private bool _e0; 
+    public int Length => 32;
+    public static implicit operator DecisionBoolArray(bool[] values) {
+        var a = new DecisionBoolArray();
+        if (values != null) for (int i=0; i<values.Length && i<32; i++) a[i] = values[i];
+        return a;
+    }
+}
+
+[System.Runtime.CompilerServices.InlineArray(32)]
+public struct DecisionIntArray { 
+    private int _e0; 
+    public int Length => 32;
+    public static implicit operator DecisionIntArray(int[] values) {
+        var a = new DecisionIntArray();
+        if (values != null) for (int i=0; i<values.Length && i<32; i++) a[i] = values[i];
+        return a;
+    }
+}
+
+[System.Runtime.CompilerServices.InlineArray(32)]
+public struct DecisionLongArray { 
+    private long _e0; 
+    public int Length => 32;
+    public static implicit operator DecisionLongArray(long[] values) {
+        var a = new DecisionLongArray();
+        if (values != null) for (int i=0; i<values.Length && i<32; i++) a[i] = values[i];
+        return a;
+    }
+}
+
 public struct DecisionState : IComponent
 {
     public long LastConsideredMinute;
@@ -156,10 +200,10 @@ public struct DecisionState : IComponent
     // Wake reasons identify lifecycle changes that require an immediate pass.
     public DecisionWakeReason ImmediateWakeReasons;
     public long EvaluationCount;
-    public float[] CachedScores;
-    public bool[] CachedEligibility;
-    public int[] CachedTargetEntityIds;
-    public int[] CachedTargetLocationIds;
+    public DecisionFloatArray CachedScores;
+    public DecisionBoolArray CachedEligibility;
+    public DecisionIntArray CachedTargetEntityIds;
+    public DecisionIntArray CachedTargetLocationIds;
     // Debug diagnostics are allocated only when the decision system is created
     // with diagnostics enabled. They never cross into player intelligence.
     public float[][] CachedUtilityContributions;
@@ -167,8 +211,8 @@ public struct DecisionState : IComponent
     public string[] CachedRejectedPredicates;
     // Parallel arrays avoid a dictionary allocation per agent. There are only
     // three candidates in this first slice.
-    public int[] CooldownActionHashes;
-    public long[] CooldownUntilMinutes;
+    public DecisionIntArray CooldownActionHashes;
+    public DecisionLongArray CooldownUntilMinutes;
 }
 
 [Flags]
@@ -245,11 +289,28 @@ public struct AgentTravel : IComponent
     public AgentTravelMode Mode;
 }
 
+[System.Runtime.CompilerServices.InlineArray(16)]
+public struct AgentAttributeValues
+{
+    private float _e0;
+    public int Length => 16;
+    public static implicit operator AgentAttributeValues(float[] values) {
+        var a = new AgentAttributeValues();
+        if (values != null) for (int i=0; i<values.Length && i<16; i++) a[i] = values[i];
+        return a;
+    }
+    public float[] ToArray() {
+        var arr = new float[16];
+        for (int i=0; i<16; i++) arr[i] = this[i];
+        return arr;
+    }
+}
+
 // Numeric agent attributes are kept in schema order. The shared schema supplies
 // the meaning of each index, avoiding a per-agent dictionary and fixed fields.
 public struct AgentAttributes : IComponent
 {
-    public float[] Values;
+    public AgentAttributeValues Values;
 }
 
 public static class SimulationDefaults

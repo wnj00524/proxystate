@@ -144,7 +144,7 @@ public sealed class RelationshipDrivenLivesTests
         Assert.Equal(active[1].Id, active[0].GetComponent<CoordinationState>().PartnerEntityId);
         var rejected = new[] { first, second, third }.Single(agent => !agent.GetComponent<CoordinationState>().Active);
         var decision = rejected.GetComponent<DecisionState>();
-        var cooldownIndex = Array.IndexOf(decision.CooldownActionHashes, 1003);
+        var cooldownIndex = ((ReadOnlySpan<int>)decision.CooldownActionHashes).IndexOf(1003);
         Assert.True(cooldownIndex >= 0);
         Assert.Equal(1_035, decision.CooldownUntilMinutes[cooldownIndex]);
     }
@@ -204,8 +204,8 @@ public sealed class RelationshipDrivenLivesTests
         Assert.Equal(CoordinationRole.Initiator, actor.GetComponent<CoordinationState>().Role);
         var before = new Dictionary<int, float[]>
         {
-            [actor.Id] = actor.GetComponent<AgentAttributes>().Values.ToArray(),
-            [partner.Id] = partner.GetComponent<AgentAttributes>().Values.ToArray()
+            [actor.Id] = ((ReadOnlySpan<float>)actor.GetComponent<AgentAttributes>().Values).ToArray(),
+            [partner.Id] = ((ReadOnlySpan<float>)partner.GetComponent<AgentAttributes>().Values).ToArray()
         };
 
         Advance(clock, startMinute + 1);
@@ -341,12 +341,12 @@ public sealed class RelationshipDrivenLivesTests
                 Dirty = true,
                 ChangedFacts = FactDependencyMask.All,
                 LastConsideredMinute = -1,
-                CachedScores = new float[catalog.Intents.Count],
-                CachedEligibility = new bool[catalog.Intents.Count],
-                CachedTargetEntityIds = new int[catalog.Intents.Count],
-                CachedTargetLocationIds = new int[catalog.Intents.Count],
-                CooldownActionHashes = new int[catalog.Intents.Count],
-                CooldownUntilMinutes = new long[catalog.Intents.Count]
+                
+                
+                
+                
+                
+                
             },
             new AgentLocation { HomeLocationId = 3001, WorkLocationId = 3004, CurrentLocationId = location },
             new AgentTravel { RouteLocationIds = new[] { 3001, 3003, 3004 } },

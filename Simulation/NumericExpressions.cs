@@ -270,15 +270,15 @@ public sealed class CompiledNumericExpression
 }
 
 internal readonly record struct DecisionFactContext(
-    WorldTime Time, JobDefinition Job, float[] Attributes, AgentLocation Location,
+    WorldTime Time, JobDefinition Job, AgentAttributeValues Attributes, AgentLocation Location,
     AgentTravel Travel, int TargetEntityId, float TargetAffinity, int TargetLocationId = 0,
-    float[]? TargetAttributes = null)
+    AgentAttributeValues? TargetAttributes = null)
 {
     public float Read(FactId fact) => fact.Kind switch
     {
         FactKind.AgentAttribute => Attributes[fact.Index],
-        FactKind.TargetAttribute => TargetAttributes is not null && fact.Index < TargetAttributes.Length
-            ? TargetAttributes[fact.Index] : 0f,
+        FactKind.TargetAttribute => TargetAttributes is not null && fact.Index < 16
+            ? TargetAttributes.Value[fact.Index] : 0f,
         FactKind.TimeMinuteOfDay => Time.MinuteOfDay,
         FactKind.TimeDayOfWeek => Time.DayOfWeek,
         FactKind.JobWorkStartMinute => Job.WorkStartMinute,
