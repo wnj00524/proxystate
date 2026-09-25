@@ -119,6 +119,8 @@ public sealed class AgentDecisionSystem : QuerySystem<Identity, AgentAttributes,
         Query.ForEachEntity((ref Identity identity, ref AgentAttributes attributes, ref Psychology psychology,
             ref AgentLocation location, ref AgentTravel travel, Entity entity) =>
         {
+            if (entity.TryGetComponent<PoliticalParticipation>(out var political) &&
+                political.TripKind != PoliticalTripKind.None) return;
             if (!_jobs.TryGetValue(identity.OccupationId, out var job)) return;
             ref var intention = ref entity.GetComponent<IntentionState>();
             ref var decision = ref entity.GetComponent<DecisionState>();

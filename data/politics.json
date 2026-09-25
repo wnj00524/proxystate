@@ -1,0 +1,22 @@
+{
+  "electionIntervalDays": 28,
+  "nominationDays": 7,
+  "pollOpeningMinute": 360,
+  "pollClosingMinute": 1200,
+  "pollingLocationId": "town-hall",
+  "politicalEngagementAttribute": "political-engagement",
+  "motivationAttribute": "motivation",
+  "candidateEngagementWeight": 0.65,
+  "candidateMotivationWeight": 0.35,
+  "candidateThreshold": 52,
+  "candidateThresholdVariation": 36,
+  "voteEngagementWeight": 0.38,
+  "voteMotivationWeight": 0.30,
+  "voteSocialPressureWeight": 0.22,
+  "voteBaseUtility": 10,
+  "voteThreshold": 27,
+  "voteThresholdVariation": 48,
+  "travelPenaltyPerMinute": 0.45,
+  "maximumTravelPenalty": 24,
+  "workOverlapPenalty": 22
+}

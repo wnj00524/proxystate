@@ -8,6 +8,8 @@
     { "id": "salience", "min": 0, "max": 1, "average": 0.5 },
     { "id": "fatigue", "min": 0, "max": 100, "average": 35 },
     { "id": "stress", "min": 0, "max": 100, "average": 30 },
-    { "id": "wealth", "min": 0, "max": 10000, "average": 4000 }
+    { "id": "wealth", "min": 0, "max": 10000, "average": 4000 },
+    { "id": "political-engagement", "min": 0, "max": 100, "average": 35 },
+    { "id": "motivation", "min": 0, "max": 100, "average": 50 }
   ]
 }

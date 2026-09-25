@@ -91,6 +91,30 @@ displayed label. Both `id` and `factionId` must be unique. Use a new, unused
 whole number for `factionId`; do not renumber a faction that has already been
 used.
 
+### `politics.json`: elections and turnout
+
+The city politics file controls the recurring election schedule and turnout
+model:
+
+* `electionIntervalDays` is the number of simulation days between elections.
+  The first election occurs at the end of the first interval.
+* `nominationDays` opens candidate registration for that many days immediately
+  before election day. Candidates register by traveling to Town Hall.
+* `pollOpeningMinute` and `pollClosingMinute` are minutes after midnight on
+  election day. Voters travel to the configured `pollingLocationId`.
+* `politicalEngagementAttribute` and `motivationAttribute` name attributes
+  from `agent-schema.json` used to decide whether agents run and vote.
+* Candidate and vote weights combine those attributes. Threshold and
+  variation values represent different willingness to participate. Travel
+  and work penalties reduce voting likelihood. Social pressure comes from the
+  average political engagement of an agent's social contacts.
+
+Each political job declares `selectionMethod`. Elected jobs receive the
+highest vote total after faction preference and charisma select each ballot.
+Appointed jobs name an elected `appointedByJobId`; that official fills the role
+from applicants, favouring their faction and then applicant engagement and
+charisma. Agents can hold only one political position at a time.
+
 ### `secret-states.json`: hidden states
 
 These entries name covert states that can be shown in the development-only
@@ -106,12 +130,24 @@ Each entry describes one job:
 
 * `workStartMinute` and `workEndMinute` count minutes after midnight. For
   example, `480` is 8:00 a.m. and `1020` is 5:00 p.m. The end must be later
-  than the start; an overnight shift cannot currently be described.
+  than the start and earlier than `1440` so the agent can commute home;
+  overnight shifts cannot currently be described.
 * `workDays` uses `1` for Monday through `7` for Sunday. Do not repeat a day.
 * `workplaceType` must exactly match the `type` of at least one location in
   `world.json`. Agents with this job can be assigned to those locations.
+* `sector` is `private` or `public` and identifies who employs the worker.
+* `weeklyPay` is weekly pay in simulation credits. It must be zero or higher.
+* `prestige` is the role's social standing from 1 (low) to 100 (highest).
+  Prestige is independent of pay, so public service and political roles can
+  have high standing without the highest salary.
+* `selectionMethod` is `null` for ordinary work, `elected` for a ballot office,
+  or `appointed` for an office filled by another elected official.
+* `appointedByJobId` names the elected job allowed to appoint this role. It
+  must be `null` for ordinary and elected jobs.
 
 Jobs need unique IDs and hashes. A job also needs at least one working day.
+Schedules can represent opening hours, shifts, evening meetings, and shorter
+multi-day weeks, as long as each shift starts and ends within one day.
 
 ### `world.json`: places and routes
 
@@ -234,6 +270,17 @@ it and its neighbour, and then assign every required unique ID or number. Never
 copy an entry and leave its old hash, faction ID, or trait bit in place.
 
 ## Checking your work
+
+### `factions.json`: leadership and strategy
+
+Each faction names elected `leaderJobId` and non-elected `activistJobId` jobs,
+one `metaGoal`, and a set of `goals`. A goal selects an action (`recruit`,
+`organize`, `campaign`, `office-seeking`, or `govern`), tracks one measure
+(`members`, `organization`, `support`, or `control`), and may list prerequisite
+goal IDs. Leaders pursue the highest-priority unfinished goal whose
+prerequisites have completed. Keep faction IDs in sync with each faction job's
+`factionId`; leader jobs use `factionRole: leader`, and activist jobs use
+`factionRole: activist`. Goal IDs must be unique across all factions.
 
 ### `lod.json`: Tier 3 routines
 

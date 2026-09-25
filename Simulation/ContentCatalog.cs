@@ -60,7 +60,14 @@ public sealed record ActionDefinition(
     bool Fallback = false,
     ParticipationDefinition? Participation = null);
 public sealed record SecretStateDefinition(string Id, string Name, int Hash);
-public sealed record FactionDefinition(string Id, string Name, byte FactionId);
+public sealed record FactionDefinition(
+    string Id, string Name, byte FactionId, string? LeaderJobId = null,
+    string? ActivistJobId = null, FactionMetaGoalDefinition? MetaGoal = null,
+    List<FactionGoalDefinition>? Goals = null);
+public sealed record FactionMetaGoalDefinition(string Id, string Name, string Description);
+public sealed record FactionGoalDefinition(
+    string Id, string Name, string Action, string Metric, float Target,
+    float DailyProgress, int Priority, List<string>? Prerequisites = null);
 public sealed record AgentAttributeDefinition(string Id, float Min, float Max, float Average);
 public sealed record JobDefinition(
     string Id,
@@ -69,7 +76,45 @@ public sealed record JobDefinition(
     int WorkStartMinute,
     int WorkEndMinute,
     List<int> WorkDays,
-    string WorkplaceType);
+    string WorkplaceType,
+    string Sector = "private",
+    int WeeklyPay = 0,
+    int Prestige = 0,
+    string? SelectionMethod = null,
+    string? AppointedByJobId = null,
+    byte? FactionId = null,
+    string? FactionRole = null);
+public sealed class PoliticsDocument
+{
+    public int ElectionIntervalDays { get; init; }
+    public int NominationDays { get; init; }
+    public int PollOpeningMinute { get; init; }
+    public int PollClosingMinute { get; init; }
+    public string? PollingLocationId { get; init; }
+    public string? PoliticalEngagementAttribute { get; init; }
+    public string? MotivationAttribute { get; init; }
+    public float CandidateEngagementWeight { get; init; }
+    public float CandidateMotivationWeight { get; init; }
+    public float CandidateThreshold { get; init; }
+    public float CandidateThresholdVariation { get; init; }
+    public float VoteEngagementWeight { get; init; }
+    public float VoteMotivationWeight { get; init; }
+    public float VoteSocialPressureWeight { get; init; }
+    public float VoteBaseUtility { get; init; }
+    public float VoteThreshold { get; init; }
+    public float VoteThresholdVariation { get; init; }
+    public float TravelPenaltyPerMinute { get; init; }
+    public float MaximumTravelPenalty { get; init; }
+    public float WorkOverlapPenalty { get; init; }
+}
+public sealed record PoliticsSettings(int ElectionIntervalDays, int NominationDays,
+    int PollOpeningMinute, int PollClosingMinute, int PollingLocationId,
+    int PoliticalEngagementAttributeIndex, int MotivationAttributeIndex,
+    float CandidateEngagementWeight, float CandidateMotivationWeight,
+    float CandidateThreshold, float CandidateThresholdVariation,
+    float VoteEngagementWeight, float VoteMotivationWeight, float VoteSocialPressureWeight,
+    float VoteBaseUtility, float VoteThreshold, float VoteThresholdVariation,
+    float TravelPenaltyPerMinute, float MaximumTravelPenalty, float WorkOverlapPenalty);
 public sealed record WorldLocationDefinition(string Id, string Name, int Hash, string Type);
 public sealed record WorldConnectionDefinition(string From, string To, int TravelMinutes);
 
@@ -197,7 +242,8 @@ public sealed class ContentCatalog
         IReadOnlyList<JobDefinition> jobs,
         WorldTopology world,
         AgentNetworkCatalog networks,
-        AgentLodSettings lod)
+        AgentLodSettings lod,
+        PoliticsSettings politics)
     {
         Traits = traits;
         Actions = actions;
@@ -209,6 +255,7 @@ public sealed class ContentCatalog
         World = world;
         Networks = networks;
         Lod = lod;
+        Politics = politics;
         AllTraitBits = traits.Aggregate(0L, (mask, trait) => mask | trait.Bit);
     }
 
@@ -222,6 +269,7 @@ public sealed class ContentCatalog
     public WorldTopology World { get; }
     public AgentNetworkCatalog Networks { get; }
     public AgentLodSettings Lod { get; }
+    public PoliticsSettings Politics { get; }
     public long AllTraitBits { get; }
 
     public ActivityDefinition GetActivity(int hash) => Actions
@@ -242,6 +290,7 @@ public sealed class ContentCatalog
         var jobs = LoadFile<JobDefinition>(directory, "jobs.json", options);
         var worldDocument = LoadObject<WorldDocument>(directory, "world.json", options);
         var lodDocument = LoadObject<LodDocument>(directory, "lod.json", options);
+        var politicsDocument = LoadObject<PoliticsDocument>(directory, "politics.json", options);
         var networksPath = Path.Combine(directory, "networks.json");
         if (!File.Exists(networksPath))
             throw new FileNotFoundException($"Required content file was not found: {networksPath}", networksPath);
@@ -249,10 +298,136 @@ public sealed class ContentCatalog
         ValidateSecretStates(secretStates);
         var agentAttributes = Validate(traits, actions, factions, schemaDocument.Attributes);
         var world = ValidateWorld(jobs, worldDocument.Locations, worldDocument.Connections);
+        ValidateFactions(factions, jobs);
         var networks = AgentNetworkCatalog.Load(networksPath, options);
         var intents = IntentCompiler.Compile(actions, traits, agentAttributes, networks);
         var lod = ValidateLod(lodDocument, intents, traits, world, jobs);
-        return new ContentCatalog(traits, actions, intents, secretStates, factions, agentAttributes, jobs, world, networks, lod);
+        var politics = ValidatePolitics(politicsDocument, agentAttributes, world, jobs);
+        return new ContentCatalog(traits, actions, intents, secretStates, factions, agentAttributes, jobs, world, networks, lod, politics);
+    }
+
+    private static void ValidateFactions(IReadOnlyList<FactionDefinition> factions, IReadOnlyList<JobDefinition> jobs)
+    {
+        var jobsById = jobs.ToDictionary(job => job.Id, StringComparer.OrdinalIgnoreCase);
+        foreach (var factionJob in jobs.Where(job => job.FactionId is not null))
+        {
+            var owner = factions.SingleOrDefault(faction => faction.FactionId == factionJob.FactionId);
+            if (owner is null || (factionJob.FactionRole == "leader" &&
+                    !string.Equals(owner.LeaderJobId, factionJob.Id, StringComparison.OrdinalIgnoreCase)) ||
+                (factionJob.FactionRole == "activist" &&
+                    !string.Equals(owner.ActivistJobId, factionJob.Id, StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidDataException($"jobs.json faction job '{factionJob.Id}' is not referenced by its owning faction.");
+        }
+        var goalIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var faction in factions)
+        {
+            var path = $"factions.json:{faction.Id}";
+            if (string.IsNullOrWhiteSpace(faction.Id) || string.IsNullOrWhiteSpace(faction.Name) ||
+                string.IsNullOrWhiteSpace(faction.LeaderJobId) || string.IsNullOrWhiteSpace(faction.ActivistJobId) ||
+                faction.MetaGoal is null || string.IsNullOrWhiteSpace(faction.MetaGoal.Id) ||
+                string.IsNullOrWhiteSpace(faction.MetaGoal.Name) || faction.Goals is null || faction.Goals.Count == 0)
+                throw new InvalidDataException($"{path} must define its elected leader job, activist job, meta goal, and subgoals.");
+            if (!jobsById.TryGetValue(faction.LeaderJobId, out var leader) || leader.SelectionMethod != "elected" ||
+                leader.FactionId != faction.FactionId || leader.FactionRole != "leader")
+                throw new InvalidDataException($"{path}.leaderJobId must reference this faction's elected leader job.");
+            if (!jobsById.TryGetValue(faction.ActivistJobId, out var activist) || activist.SelectionMethod is not null ||
+                activist.FactionId != faction.FactionId || activist.FactionRole != "activist")
+                throw new InvalidDataException($"{path}.activistJobId must reference this faction's non-elected activist job.");
+            if (faction.Goals.Any(goal => string.IsNullOrWhiteSpace(goal.Id) || !goalIds.Add(goal.Id)))
+                throw new InvalidDataException($"{path}.goals must have non-empty IDs that are unique across factions.");
+            foreach (var goal in faction.Goals)
+            {
+                if (goal.Action is not ("recruit" or "organize" or "campaign" or "office-seeking" or "govern") ||
+                    goal.Metric is not ("members" or "organization" or "support" or "control") ||
+                    !float.IsFinite(goal.Target) || goal.Target <= 0 || !float.IsFinite(goal.DailyProgress) ||
+                    goal.DailyProgress <= 0 || goal.Priority < 0)
+                    throw new InvalidDataException($"{path}.goals[{goal.Id}] has an unsupported action/metric or invalid target, progress, or priority.");
+            }
+        }
+        foreach (var faction in factions)
+        foreach (var goal in faction.Goals!)
+            if (goal.Prerequisites?.Any(id => !faction.Goals.Any(candidate =>
+                    string.Equals(candidate.Id, id, StringComparison.OrdinalIgnoreCase))) == true)
+                throw new InvalidDataException($"factions.json:{faction.Id}.goals[{goal.Id}] references an unknown prerequisite.");
+        foreach (var faction in factions)
+        {
+            var goals = faction.Goals!.ToDictionary(goal => goal.Id, StringComparer.OrdinalIgnoreCase);
+            var visiting = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            bool HasCycle(string id)
+            {
+                if (visiting.Contains(id)) return true;
+                if (!visited.Add(id)) return false;
+                visiting.Add(id);
+                if (goals[id].Prerequisites?.Any(HasCycle) == true) return true;
+                visiting.Remove(id);
+                return false;
+            }
+            if (goals.Keys.Any(HasCycle))
+                throw new InvalidDataException($"factions.json:{faction.Id}.goals contains a prerequisite cycle.");
+        }
+    }
+
+    private static PoliticsSettings ValidatePolitics(PoliticsDocument document, AgentAttributeSchema attributes,
+        WorldTopology world, IReadOnlyList<JobDefinition> jobs)
+    {
+        if (document.ElectionIntervalDays <= 1 || document.NominationDays <= 0 ||
+            document.NominationDays >= document.ElectionIntervalDays)
+            throw new InvalidDataException("politics.json must define a positive nomination window shorter than the election interval.");
+        if (document.PollOpeningMinute < 0 || document.PollClosingMinute > SimulationDefaults.SimulationMinutesPerDay ||
+            document.PollOpeningMinute >= document.PollClosingMinute)
+            throw new InvalidDataException("politics.json polling hours must form a valid same-day interval.");
+        if (string.IsNullOrWhiteSpace(document.PollingLocationId))
+            throw new InvalidDataException("politics.json:pollingLocationId is required.");
+        var pollingLocation = world.Locations.SingleOrDefault(location =>
+            string.Equals(location.Id, document.PollingLocationId, StringComparison.OrdinalIgnoreCase));
+        if (pollingLocation is null)
+            throw new InvalidDataException($"politics.json references unknown polling location '{document.PollingLocationId}'.");
+        foreach (var home in world.Locations.Where(location =>
+                     string.Equals(location.Type, SimulationDefaults.ResidentialLocationType, StringComparison.OrdinalIgnoreCase)))
+        {
+            if (world.FindShortestRoute(home.Hash, pollingLocation.Hash) is null)
+                throw new InvalidDataException($"Polling location '{pollingLocation.Id}' is unreachable from residential location '{home.Id}'.");
+        }
+        if (string.IsNullOrWhiteSpace(document.PoliticalEngagementAttribute) ||
+            string.IsNullOrWhiteSpace(document.MotivationAttribute))
+            throw new InvalidDataException("politics.json must name political engagement and motivation attributes.");
+        int engagementIndex;
+        int motivationIndex;
+        try
+        {
+            engagementIndex = attributes.GetIndex(document.PoliticalEngagementAttribute);
+            motivationIndex = attributes.GetIndex(document.MotivationAttribute);
+        }
+        catch (KeyNotFoundException exception)
+        {
+            throw new InvalidDataException($"politics.json references an unknown agent attribute: {exception.Message}", exception);
+        }
+        if (!jobs.Any(job => job.SelectionMethod == "elected"))
+            throw new InvalidDataException("jobs.json must define at least one elected political office.");
+        var values = new[] { document.CandidateEngagementWeight, document.CandidateMotivationWeight,
+            document.CandidateThreshold, document.CandidateThresholdVariation,
+            document.VoteEngagementWeight, document.VoteMotivationWeight, document.VoteSocialPressureWeight,
+            document.VoteBaseUtility, document.VoteThreshold, document.VoteThresholdVariation,
+            document.TravelPenaltyPerMinute, document.MaximumTravelPenalty, document.WorkOverlapPenalty };
+        if (values.Any(value => !float.IsFinite(value)) || document.CandidateEngagementWeight < 0 ||
+            document.CandidateMotivationWeight < 0 || document.CandidateThreshold is < 0 or > 100 ||
+            document.CandidateThresholdVariation is < 0 or > 100 ||
+            document.CandidateEngagementWeight + document.CandidateMotivationWeight <= 0 ||
+            document.VoteEngagementWeight < 0 ||
+            document.VoteMotivationWeight < 0 || document.VoteSocialPressureWeight < 0 ||
+            document.VoteEngagementWeight + document.VoteMotivationWeight + document.VoteSocialPressureWeight <= 0 ||
+            document.VoteBaseUtility < 0 || document.VoteThreshold is < 0 or > 100 ||
+            document.VoteThresholdVariation is < 0 or > 100 || document.TravelPenaltyPerMinute < 0 ||
+            document.MaximumTravelPenalty < 0 || document.WorkOverlapPenalty < 0)
+            throw new InvalidDataException("politics.json contains invalid candidate, turnout, access, or work-pressure weights.");
+        return new PoliticsSettings(document.ElectionIntervalDays, document.NominationDays,
+            document.PollOpeningMinute, document.PollClosingMinute, pollingLocation.Hash,
+            engagementIndex, motivationIndex, document.CandidateEngagementWeight, document.CandidateMotivationWeight,
+            document.CandidateThreshold, document.CandidateThresholdVariation, document.VoteEngagementWeight,
+            document.VoteMotivationWeight, document.VoteSocialPressureWeight, document.VoteBaseUtility,
+            document.VoteThreshold, document.VoteThresholdVariation, document.TravelPenaltyPerMinute,
+            document.MaximumTravelPenalty, document.WorkOverlapPenalty);
     }
 
     private static AgentLodSettings ValidateLod(LodDocument document, CompiledIntentCatalog intents,
@@ -625,6 +800,24 @@ public sealed class ContentCatalog
                 throw new InvalidDataException($"Job '{job.Id}' must have a name and workplace type.");
             }
 
+            if (job.Sector is not ("public" or "private") || job.WeeklyPay < 0 || job.Prestige is < 1 or > 100)
+            {
+                throw new InvalidDataException($"Job '{job.Id}' must use the public or private sector, non-negative weekly pay, and prestige from 1 through 100.");
+            }
+            if (job.SelectionMethod is not null && job.FactionId is null && job.Sector != "public")
+                throw new InvalidDataException($"Civic political job '{job.Id}' must belong to the public sector.");
+            if (job.FactionId is not null && job.FactionRole is null)
+                throw new InvalidDataException($"Faction job '{job.Id}' must define factionRole.");
+            if (job.FactionRole is not null && job.FactionRole is not ("leader" or "activist"))
+                throw new InvalidDataException($"Job '{job.Id}' factionRole must be leader or activist.");
+
+            if (job.SelectionMethod is not (null or "elected" or "appointed"))
+                throw new InvalidDataException($"Job '{job.Id}' selectionMethod must be null, elected, or appointed.");
+            if (job.SelectionMethod == "appointed" && string.IsNullOrWhiteSpace(job.AppointedByJobId))
+                throw new InvalidDataException($"Appointed job '{job.Id}' must name appointedByJobId.");
+            if (job.SelectionMethod != "appointed" && job.AppointedByJobId is not null)
+                throw new InvalidDataException($"Job '{job.Id}' may only name appointedByJobId when its selectionMethod is appointed.");
+
             if (job.WorkStartMinute < 0 || job.WorkEndMinute > SimulationDefaults.SimulationMinutesPerDay ||
                 job.WorkStartMinute >= job.WorkEndMinute)
             {
@@ -681,6 +874,13 @@ public sealed class ContentCatalog
             {
                 throw new InvalidDataException($"Job '{job.Id}' requires unavailable workplace type '{job.WorkplaceType}'.");
             }
+        }
+        foreach (var job in jobs.Where(job => job.SelectionMethod == "appointed"))
+        {
+            var appointingJob = jobs.SingleOrDefault(candidate =>
+                string.Equals(candidate.Id, job.AppointedByJobId, StringComparison.OrdinalIgnoreCase));
+            if (appointingJob?.SelectionMethod != "elected")
+                throw new InvalidDataException($"Appointed job '{job.Id}' must reference an existing elected appointing office.");
         }
 
         if (connections is null || connections.Count == 0)

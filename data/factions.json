@@ -1,4 +1,40 @@
 [
-  { "id": "blue", "name": "Blue", "factionId": 0 },
-  { "id": "red", "name": "Red", "factionId": 1 }
+  {
+    "id": "blue",
+    "name": "Blue",
+    "factionId": 0,
+    "leaderJobId": "blue-faction-leader",
+    "activistJobId": "blue-faction-activist",
+    "metaGoal": {
+      "id": "blue-civic-influence",
+      "name": "Build a durable civic coalition",
+      "description": "Grow an organized base, persuade residents around housing and public services, and win lasting influence over town decisions."
+    },
+    "goals": [
+      { "id": "blue-recruit", "name": "Build a neighborhood membership", "action": "recruit", "metric": "members", "target": 24, "dailyProgress": 2, "priority": 100 },
+      { "id": "blue-organize", "name": "Create an active neighborhood network", "action": "organize", "metric": "organization", "target": 45, "dailyProgress": 2.5, "priority": 80, "prerequisites": ["blue-recruit"] },
+      { "id": "blue-housing", "name": "Campaign for housing and services", "action": "campaign", "metric": "support", "target": 58, "dailyProgress": 2, "priority": 70, "prerequisites": ["blue-recruit"] },
+      { "id": "blue-council", "name": "Win a voice in town government", "action": "office-seeking", "metric": "control", "target": 1, "dailyProgress": 1, "priority": 60, "prerequisites": ["blue-organize", "blue-housing"] },
+      { "id": "blue-govern", "name": "Turn representation into durable control", "action": "govern", "metric": "control", "target": 2, "dailyProgress": 1, "priority": 50, "prerequisites": ["blue-council"] }
+    ]
+  },
+  {
+    "id": "red",
+    "name": "Red",
+    "factionId": 1,
+    "leaderJobId": "red-faction-leader",
+    "activistJobId": "red-faction-activist",
+    "metaGoal": {
+      "id": "red-civic-influence",
+      "name": "Become the town's organized governing force",
+      "description": "Build a disciplined base among workers and small businesses, mobilize reliable supporters, and secure the offices that shape town priorities."
+    },
+    "goals": [
+      { "id": "red-recruit", "name": "Recruit a reliable local base", "action": "recruit", "metric": "members", "target": 22, "dailyProgress": 2, "priority": 100 },
+      { "id": "red-organize", "name": "Connect workplaces and neighborhoods", "action": "organize", "metric": "organization", "target": 52, "dailyProgress": 3, "priority": 85, "prerequisites": ["red-recruit"] },
+      { "id": "red-business", "name": "Build public support for jobs and local commerce", "action": "campaign", "metric": "support", "target": 56, "dailyProgress": 2.5, "priority": 75, "prerequisites": ["red-recruit"] },
+      { "id": "red-council", "name": "Secure elected representation", "action": "office-seeking", "metric": "control", "target": 1, "dailyProgress": 1, "priority": 65, "prerequisites": ["red-organize", "red-business"] },
+      { "id": "red-govern", "name": "Expand representation into governing influence", "action": "govern", "metric": "control", "target": 2, "dailyProgress": 1, "priority": 55, "prerequisites": ["red-council"] }
+    ]
+  }
 ]

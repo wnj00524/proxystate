@@ -53,6 +53,25 @@ public struct PoliticalAlignment : IComponent {
     public byte FactionId;   // JSON faction ID.
 }
 
+public struct PoliticalParticipation : IComponent {
+    public int CandidateJobHash;
+    public int CandidateElectionId;
+    public int VotedElectionId;
+    public int VotingDecisionElectionId;
+    public int PreviousOccupationId;
+    public int TripOriginLocationId;
+    public int TripElectionId;
+    public int TripOfficeHash;
+    public long TripDepartureMinute;
+    public long TripArrivalMinute;
+    public long TripReturnMinute;
+    public PoliticalTripKind TripKind;
+    public bool TripInProgress;
+    public bool TripArrived;
+}
+
+public enum PoliticalTripKind : byte { None, Nomination, Polling }
+
 public struct AgentAttributes : IComponent {
     public float[] Values; // Values are ordered by data/agent-schema.json.
 }
@@ -220,7 +239,12 @@ currently supports up to 63 positive single-bit traits.
 
 `Identity.OccupationId` stores the stable hash of the agent's assigned job. Jobs
 are loaded from `data/jobs.json`; each job defines an integer start and end
-minute, a set of workdays from 1 through 7, and the required workplace type.
+minute, a set of workdays from 1 through 7, the required workplace type, a
+public or private sector, weekly pay in simulation credits, prestige from 1 to
+100, and an optional selection method. Appointed jobs also identify the elected
+job allowed to appoint them. The schedule is used by activity decisions and
+coarse routine profile generation. `PoliticalParticipation` keeps candidate,
+ballot, office history, and polling trip state on every LOD tier.
 
 World locations are loaded from `data/world.json` as typed nodes connected by
 bidirectional edges. Each location has a stable integer hash, and each edge
@@ -495,3 +519,39 @@ increments only when a registered coarse agent enters `CatchUp`, including
 scheduled shard work and promotion catch-up. `AgentLodService.CoarseAgentVisits`
 exposes the value read-only for scale verification; presentation projections do
 not contain it.
+
+### 2.13 Political Faction State and Strategy
+
+`FactionParticipation` is an ECS component on every spawned agent. It stores
+the one current faction membership, the role (`Volunteer`, `Activist`,
+`Leader`, or `None`), the former occupation used when faction staff leave, and
+the last day on which the agent considered recruitment. Its `AppliedForStaff`
+flag records a volunteer's application for activist work. Political alignment
+remains a separate preference and does not itself create membership.
+
+`factions.json` defines a faction's elected leader job, leader-selected
+activist job, meta goal, and subgoal definitions. Each subgoal names its
+action, progress metric, target, daily progress, priority, and prerequisite
+IDs. `ContentCatalog` validates faction job ownership, action/metric names,
+and prerequisite references. `FactionSnapshot` is an immutable projection of
+current membership and influence measures; mutable progress counters live in
+`PoliticalFactionSystem`, not on agents or in UI state.
+
+### 2.14 Headless Political Diagnostics
+
+`ApplicationOptions` includes the headless mode flag, optional day count,
+deterministic seed (default 17001), and report prefix. Headless runs require
+`--days` and support 1–3650 days and 1–100,000 agents. They write a Markdown
+and a JSON file by appending `.md` and `.json` to the prefix.
+
+`PoliticalHeadlessReport` is the versioned report root (`SchemaVersion` is
+currently 1). It contains seed/population/run metadata, one `DailyFactionDiagnostic`
+per faction per day, the final elected/appointed `PoliticalOfficeholder` list,
+one `ElectionDiagnosticResult` per resolved cycle, and a chronological sequence
+of `PoliticalDiagnosticEvent` records. Office tallies are stored per office and
+cycle so future elections do not overwrite prior results. Event agent IDs are
+stable simulation entity IDs; faction and office identifiers use content IDs.
+The event stream includes political choices and travel, not ordinary movement
+or day-to-day work activity. Console progress is emitted through an optional
+runner callback and reports startup parameters, day boundaries, elapsed time,
+and a remaining-time estimate calculated from completed days.
