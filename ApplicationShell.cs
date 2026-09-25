@@ -12,6 +12,8 @@ namespace ProxyState;
 public enum ApplicationId
 {
     Dossiers,
+    NorthstarOpinion,
+    TownlineResearch,
     DebugWindow
 }
 
@@ -24,11 +26,15 @@ public static class ApplicationCatalog
             ? new[]
             {
                 new ApplicationIcon(ApplicationId.Dossiers, "Dossiers", "D"),
+                new ApplicationIcon(ApplicationId.NorthstarOpinion, "Northstar Opinion", "N"),
+                new ApplicationIcon(ApplicationId.TownlineResearch, "Townline Research", "T"),
                 new ApplicationIcon(ApplicationId.DebugWindow, "Debug Window", "DBG")
             }
             : new[]
             {
-                new ApplicationIcon(ApplicationId.Dossiers, "Dossiers", "D")
+                new ApplicationIcon(ApplicationId.Dossiers, "Dossiers", "D"),
+                new ApplicationIcon(ApplicationId.NorthstarOpinion, "Northstar Opinion", "N"),
+                new ApplicationIcon(ApplicationId.TownlineResearch, "Townline Research", "T")
             };
 }
 
@@ -41,12 +47,29 @@ public sealed class ApplicationShell
 {
     public const string DossiersWindowTitle = "Surveillance Terminal";
     public const string DebugWindowTitle = "Debug Window";
+    public const string NorthstarWindowTitle = "Northstar Opinion";
+    public const string TownlineWindowTitle = "Townline Research";
 
     private ApplicationId? _selectedApplication;
 
     public bool DossiersOpen { get; private set; }
 
     public bool DebugWindowOpen { get; private set; }
+    public bool NorthstarWindowOpen { get; private set; }
+    public bool TownlineWindowOpen { get; private set; }
+
+    public void OpenApplication(ApplicationId application) => Open(application);
+
+    public void CloseApplication(ApplicationId application)
+    {
+        switch (application)
+        {
+            case ApplicationId.NorthstarOpinion: NorthstarWindowOpen = false; break;
+            case ApplicationId.TownlineResearch: TownlineWindowOpen = false; break;
+            case ApplicationId.Dossiers: DossiersOpen = false; break;
+            case ApplicationId.DebugWindow: DebugWindowOpen = false; break;
+        }
+    }
 
     public void DrawLauncher(bool debugMode)
     {
@@ -62,7 +85,7 @@ public sealed class ApplicationShell
         }
 
         ImGui.SetNextWindowPos(new Vector2(24f, 24f), ImGuiCond.FirstUseEver);
-        ImGui.SetNextWindowSize(new Vector2(430f, 270f), ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowSize(new Vector2(620f, 270f), ImGuiCond.FirstUseEver);
 
         if (ImGui.Begin("Applications"))
         {
@@ -121,6 +144,25 @@ public sealed class ApplicationShell
         DebugWindowOpen = isOpen;
     }
 
+    public void DrawResearchWindows(IReadOnlyList<ResearchProviderProjection> providers)
+    {
+        ArgumentNullException.ThrowIfNull(providers);
+        var northstar = providers.FirstOrDefault(provider => provider.ProviderId == "northstar-opinion");
+        var townline = providers.FirstOrDefault(provider => provider.ProviderId == "townline-research");
+        if (NorthstarWindowOpen && northstar is not null)
+        {
+            var open = NorthstarWindowOpen;
+            PoliticalResearchWindow.Draw(northstar, NorthstarWindowTitle, ref open);
+            NorthstarWindowOpen = open;
+        }
+        if (TownlineWindowOpen && townline is not null)
+        {
+            var open = TownlineWindowOpen;
+            PoliticalResearchWindow.Draw(townline, TownlineWindowTitle, ref open);
+            TownlineWindowOpen = open;
+        }
+    }
+
     private void DrawApplicationIcon(ApplicationIcon application)
     {
         ImGui.BeginGroup();
@@ -162,6 +204,12 @@ public sealed class ApplicationShell
                 break;
             case ApplicationId.DebugWindow:
                 DebugWindowOpen = true;
+                break;
+            case ApplicationId.NorthstarOpinion:
+                NorthstarWindowOpen = true;
+                break;
+            case ApplicationId.TownlineResearch:
+                TownlineWindowOpen = true;
                 break;
         }
     }

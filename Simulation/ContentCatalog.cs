@@ -115,6 +115,35 @@ public sealed record PoliticsSettings(int ElectionIntervalDays, int NominationDa
     float VoteEngagementWeight, float VoteMotivationWeight, float VoteSocialPressureWeight,
     float VoteBaseUtility, float VoteThreshold, float VoteThresholdVariation,
     float TravelPenaltyPerMinute, float MaximumTravelPenalty, float WorkOverlapPenalty);
+public sealed class PoliticalResearchDocument
+{
+    public int CadenceDays { get; init; }
+    public int FieldworkDays { get; init; }
+    public int CallStartMinute { get; init; }
+    public int CallEndMinute { get; init; }
+    public string? CandidateOfficeId { get; init; }
+    public List<SurveyCategoryDefinition>? AgeBands { get; init; }
+    public List<SurveyCategoryDefinition>? Genders { get; init; }
+    public List<SurveyCategoryDefinition>? EducationLevels { get; init; }
+    public float BaseResponseProbability { get; init; }
+    public float EngagementResponseWeight { get; init; }
+    public float MotivationResponseWeight { get; init; }
+    public float BaseUndecidedProbability { get; init; }
+    public float LowEngagementUndecidedWeight { get; init; }
+    public List<SurveyProviderDocument>? Providers { get; init; }
+}
+public sealed class SurveyProviderDocument
+{
+    public string? Id { get; init; }
+    public string? Name { get; init; }
+    public string? SamplingMethod { get; init; }
+    public string? Methodology { get; init; }
+    public int AttemptCount { get; init; }
+    public bool LikelyVoterOnly { get; init; }
+    public int SeedOffset { get; init; }
+    public float MaximumWeight { get; init; }
+    public List<string>? SamplingStrata { get; init; }
+}
 public sealed record WorldLocationDefinition(string Id, string Name, int Hash, string Type);
 public sealed record WorldConnectionDefinition(string From, string To, int TravelMinutes);
 
@@ -243,7 +272,8 @@ public sealed class ContentCatalog
         WorldTopology world,
         AgentNetworkCatalog networks,
         AgentLodSettings lod,
-        PoliticsSettings politics)
+        PoliticsSettings politics,
+        PoliticalResearchSettings research)
     {
         Traits = traits;
         Actions = actions;
@@ -256,6 +286,7 @@ public sealed class ContentCatalog
         Networks = networks;
         Lod = lod;
         Politics = politics;
+        Research = research;
         AllTraitBits = traits.Aggregate(0L, (mask, trait) => mask | trait.Bit);
     }
 
@@ -270,6 +301,7 @@ public sealed class ContentCatalog
     public AgentNetworkCatalog Networks { get; }
     public AgentLodSettings Lod { get; }
     public PoliticsSettings Politics { get; }
+    public PoliticalResearchSettings Research { get; }
     public long AllTraitBits { get; }
 
     public ActivityDefinition GetActivity(int hash) => Actions
@@ -291,6 +323,7 @@ public sealed class ContentCatalog
         var worldDocument = LoadObject<WorldDocument>(directory, "world.json", options);
         var lodDocument = LoadObject<LodDocument>(directory, "lod.json", options);
         var politicsDocument = LoadObject<PoliticsDocument>(directory, "politics.json", options);
+        var researchDocument = LoadObject<PoliticalResearchDocument>(directory, "research.json", options);
         var networksPath = Path.Combine(directory, "networks.json");
         if (!File.Exists(networksPath))
             throw new FileNotFoundException($"Required content file was not found: {networksPath}", networksPath);
@@ -303,7 +336,82 @@ public sealed class ContentCatalog
         var intents = IntentCompiler.Compile(actions, traits, agentAttributes, networks);
         var lod = ValidateLod(lodDocument, intents, traits, world, jobs);
         var politics = ValidatePolitics(politicsDocument, agentAttributes, world, jobs);
-        return new ContentCatalog(traits, actions, intents, secretStates, factions, agentAttributes, jobs, world, networks, lod, politics);
+        var research = ValidatePoliticalResearch(researchDocument, jobs);
+        return new ContentCatalog(traits, actions, intents, secretStates, factions, agentAttributes, jobs, world, networks, lod, politics, research);
+    }
+
+    private static PoliticalResearchSettings ValidatePoliticalResearch(PoliticalResearchDocument document,
+        IReadOnlyList<JobDefinition> jobs)
+    {
+        static IReadOnlyList<SurveyCategoryDefinition> Categories(List<SurveyCategoryDefinition>? categories, string field)
+        {
+            if (categories is null || categories.Count is < 2 or > 256 || categories.Any(category =>
+                    string.IsNullOrWhiteSpace(category.Id) || string.IsNullOrWhiteSpace(category.Label) ||
+                    !float.IsFinite(category.PopulationShare) || category.PopulationShare <= 0) ||
+                categories.Select(category => category.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count() != categories.Count ||
+                Math.Abs(categories.Sum(category => category.PopulationShare) - 1f) > .001f)
+                throw new InvalidDataException($"research.json:{field} must contain unique labeled categories with positive shares summing to 1.");
+            return categories.AsReadOnly();
+        }
+
+        static void Probability(float value, string field)
+        {
+            if (!float.IsFinite(value) || value is < 0 or > 1)
+                throw new InvalidDataException($"research.json:{field} must be between 0 and 1.");
+        }
+
+        if (document.CadenceDays <= 0 || document.FieldworkDays <= 0 ||
+            document.FieldworkDays >= document.CadenceDays)
+            throw new InvalidDataException("research.json cadenceDays and fieldworkDays must be positive, with fieldwork shorter than cadence.");
+        if (document.CallStartMinute < 0 || document.CallEndMinute > SimulationDefaults.SimulationMinutesPerDay ||
+            document.CallStartMinute >= document.CallEndMinute)
+            throw new InvalidDataException("research.json call window must be a valid same-day minute interval.");
+        var candidateOffice = jobs.FirstOrDefault(job => string.Equals(job.Id, document.CandidateOfficeId,
+            StringComparison.OrdinalIgnoreCase));
+        if (candidateOffice is null || candidateOffice.SelectionMethod != "elected" || candidateOffice.FactionId is not null)
+            throw new InvalidDataException("research.json:candidateOfficeId must reference an elected public office.");
+
+        var ageBands = Categories(document.AgeBands, "ageBands");
+        var genders = Categories(document.Genders, "genders");
+        var education = Categories(document.EducationLevels, "educationLevels");
+        Probability(document.BaseResponseProbability, "baseResponseProbability");
+        Probability(document.EngagementResponseWeight, "engagementResponseWeight");
+        Probability(document.MotivationResponseWeight, "motivationResponseWeight");
+        Probability(document.BaseUndecidedProbability, "baseUndecidedProbability");
+        Probability(document.LowEngagementUndecidedWeight, "lowEngagementUndecidedWeight");
+        if (document.BaseResponseProbability + document.EngagementResponseWeight + document.MotivationResponseWeight > 1f)
+            throw new InvalidDataException("research.json response probability weights cannot sum above 1.");
+        if (document.BaseUndecidedProbability + document.LowEngagementUndecidedWeight > 1f)
+            throw new InvalidDataException("research.json undecided probability weights cannot sum above 1.");
+        if (document.Providers is null || document.Providers.Count < 2)
+            throw new InvalidDataException("research.json must define at least two polling providers.");
+
+        var supportedStrata = new HashSet<string>(["ageBand", "gender", "education", "district", "sector"],
+            StringComparer.OrdinalIgnoreCase);
+        var providerIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var seedOffsets = new HashSet<int>();
+        var providers = new List<SurveyProviderDefinition>(document.Providers.Count);
+        foreach (var provider in document.Providers)
+        {
+            if (string.IsNullOrWhiteSpace(provider.Id) || !providerIds.Add(provider.Id) ||
+                string.IsNullOrWhiteSpace(provider.Name) || string.IsNullOrWhiteSpace(provider.Methodology) ||
+                provider.SamplingMethod is not ("stratified-probability" or "demographic-quota") ||
+                provider.AttemptCount <= 0 || !float.IsFinite(provider.MaximumWeight) || provider.MaximumWeight < 1f ||
+                !seedOffsets.Add(provider.SeedOffset) ||
+                provider.SamplingStrata is null || provider.SamplingStrata.Count == 0 ||
+                provider.SamplingStrata.Any(stratum => !supportedStrata.Contains(stratum)) ||
+                provider.SamplingStrata.Distinct(StringComparer.OrdinalIgnoreCase).Count() != provider.SamplingStrata.Count)
+                throw new InvalidDataException($"research.json provider '{provider.Id}' has invalid identity, method, attempt count, seed offset, or sampling strata.");
+            providers.Add(new SurveyProviderDefinition(provider.Id, provider.Name, provider.SamplingMethod,
+                provider.Methodology, provider.AttemptCount, provider.LikelyVoterOnly,
+                provider.SeedOffset, provider.MaximumWeight, provider.SamplingStrata.AsReadOnly()));
+        }
+
+        return new PoliticalResearchSettings(document.CadenceDays, document.FieldworkDays,
+            document.CallStartMinute, document.CallEndMinute, candidateOffice.Id, ageBands, genders, education,
+            document.BaseResponseProbability, document.EngagementResponseWeight,
+            document.MotivationResponseWeight, document.BaseUndecidedProbability,
+            document.LowEngagementUndecidedWeight, providers.AsReadOnly());
     }
 
     private static void ValidateFactions(IReadOnlyList<FactionDefinition> factions, IReadOnlyList<JobDefinition> jobs)

@@ -48,6 +48,7 @@ public static class HeadlessSimulationRunner
         };
         var politics = new PoliticalSystem(store, catalog, clock.ClockEntity, indexes, lod);
         var factions = new PoliticalFactionSystem(store, catalog, indexes, lod);
+        var research = new PoliticalResearchSystem(store, catalog, clock.ClockEntity, seed);
         var daily = new List<DailyFactionDiagnostic>(days * catalog.Factions.Count);
         var chronologicalEvents = new List<PoliticalDiagnosticEvent>();
         var recordedPoliticalEvents = 0;
@@ -69,6 +70,7 @@ public static class HeadlessSimulationRunner
                 chronologicalEvents.Add(politics.Events[recordedPoliticalEvents++]);
             var dayNumber = (int)((elapsedMinute - 1) / SimulationDefaults.SimulationMinutesPerDay) + 1;
             factions.Update(dayNumber);
+            research.Update();
             while (recordedFactionEvents < factions.Events.Count)
                 chronologicalEvents.Add(factions.Events[recordedFactionEvents++]);
             if (elapsedMinute % SimulationDefaults.SimulationMinutesPerDay == 0)

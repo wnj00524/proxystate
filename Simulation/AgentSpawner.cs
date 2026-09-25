@@ -49,6 +49,7 @@ public sealed class AgentSpawner
 
         var populationRandom = SimulationRandomStreams.Population(seed);
         var operativeRandom = SimulationRandomStreams.Operatives(seed);
+        var surveyRandom = SimulationRandomStreams.SurveyProfiles(seed);
 
         var assignments = new List<AgentWorldAssignment>(count);
         for (var index = 0; index < count; index++)
@@ -127,6 +128,7 @@ public sealed class AgentSpawner
                     Mode = AgentTravelMode.Stationary
                 });
 
+            entity.AddComponent(CreateSurveyDemographicProfile(surveyRandom));
             entity.AddComponent<PoliticalParticipation>();
             entity.AddComponent(new FactionParticipation { FactionId = byte.MaxValue });
             entity.AddComponent(new AgentCommute { TravelMinutes = assignment.Route.TravelMinutes });
@@ -201,6 +203,25 @@ public sealed class AgentSpawner
         }
 
         return values;
+    }
+
+    private SurveyDemographicProfile CreateSurveyDemographicProfile(Random random) => new()
+    {
+        AgeBand = ChooseCategory(random, _catalog.Research.AgeBands),
+        Gender = ChooseCategory(random, _catalog.Research.Genders),
+        Education = ChooseCategory(random, _catalog.Research.EducationLevels)
+    };
+
+    private static byte ChooseCategory(Random random, IReadOnlyList<SurveyCategoryDefinition> categories)
+    {
+        var draw = random.NextDouble();
+        var cumulative = 0d;
+        for (var index = 0; index < categories.Count; index++)
+        {
+            cumulative += categories[index].PopulationShare;
+            if (draw < cumulative) return (byte)index;
+        }
+        return checked((byte)(categories.Count - 1));
     }
 
     private long CreateTraitMask(Random random)

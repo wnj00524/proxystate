@@ -1,0 +1,52 @@
+{
+  "cadenceDays": 7,
+  "fieldworkDays": 3,
+  "callStartMinute": 1020,
+  "callEndMinute": 1260,
+  "candidateOfficeId": "mayor",
+  "ageBands": [
+    { "id": "18-29", "label": "18–29", "populationShare": 0.18 },
+    { "id": "30-44", "label": "30–44", "populationShare": 0.23 },
+    { "id": "45-64", "label": "45–64", "populationShare": 0.35 },
+    { "id": "65-plus", "label": "65+", "populationShare": 0.24 }
+  ],
+  "genders": [
+    { "id": "woman", "label": "Woman", "populationShare": 0.49 },
+    { "id": "man", "label": "Man", "populationShare": 0.49 },
+    { "id": "nonbinary", "label": "Nonbinary", "populationShare": 0.02 }
+  ],
+  "educationLevels": [
+    { "id": "secondary", "label": "Secondary", "populationShare": 0.32 },
+    { "id": "vocational", "label": "Vocational", "populationShare": 0.38 },
+    { "id": "degree", "label": "Degree", "populationShare": 0.30 }
+  ],
+  "baseResponseProbability": 0.55,
+  "engagementResponseWeight": 0.20,
+  "motivationResponseWeight": 0.15,
+  "baseUndecidedProbability": 0.08,
+  "lowEngagementUndecidedWeight": 0.25,
+  "providers": [
+    {
+      "id": "northstar-opinion",
+      "name": "Northstar Opinion",
+      "samplingMethod": "stratified-probability",
+      "methodology": "Randomly selected telephone sample stratified by age, gender, and district; calibrated weights and a likely-voter screen.",
+      "attemptCount": 200,
+      "likelyVoterOnly": true,
+      "seedOffset": 5817,
+      "maximumWeight": 4.0,
+      "samplingStrata": ["ageBand", "gender", "district"]
+    },
+    {
+      "id": "townline-research",
+      "name": "Townline Research",
+      "samplingMethod": "demographic-quota",
+      "methodology": "Telephone quota sample balanced by age, education, and employment sector; capped calibration weights; reports all adults.",
+      "attemptCount": 200,
+      "likelyVoterOnly": false,
+      "seedOffset": 9329,
+      "maximumWeight": 3.0,
+      "samplingStrata": ["ageBand", "education", "sector"]
+    }
+  ]
+}
