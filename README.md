@@ -1,6 +1,6 @@
 # Proxy State
 
-Proxy State is a code-first .NET 8 simulation built around Friflo.Engine.ECS,
+Proxy State is a code-first .NET 10 simulation built around Friflo.Engine.ECS,
 Raylib-cs, and rlImGui-cs. The simulation provides core ECS components, JSON
 content catalogs, schema-driven agent generation, binary trait masks, a world
 clock, networked locations, jobs, commuting, a fatigue/stress simulation loop,
@@ -37,12 +37,23 @@ then opens the Raylib canvas and the ImGui
 Applications program manager. The world starts at 09:00 on Monday. One in-world day advances in about ten real minutes by default; use the clock-bar speed buttons to select five minutes, one minute, or thirty seconds per day, and
 agents commute along shortest-time routes between assigned homes and workplaces.
 The `Applications` window acts as the program manager: double-click `Dossiers`
-to open the `Surveillance Terminal`, or, in debug mode, double-click the
-`Debug Window` icon to open the development inspector. The debug window lists
-all agents and shows the full copied simulation state for the selected agent.
+to open the `Surveillance Terminal`, `Northstar Opinion` or `Townline Research`
+to view their results, or, in debug mode, double-click `Debug Window` to open
+the development inspector. The debug window lists all agents and shows the
+full copied simulation state for the selected agent.
 Its ground-truth-only network section shows copied family/friend/company memberships,
 resolved roles and supervisors, plus a network summary with anchor and member
 count. Player-facing dossiers receive none of this network ground truth.
+
+The desktop also has independent `Agents` and `Reports` windows. `Agents`
+manages the five Operatives, their recurring seven-day work rotas, and one
+active assignment per Operative. Follow assignments produce timed sightings
+and observed interactions; talk assignments attempt an interview. Both use
+simulated travel and can report unsuccessful outcomes. `Reports` separates
+timestamped, operative-sourced evidence from the operative's assessment and
+confidence. These windows receive immutable player-intelligence projections
+and never query simulation entities directly. Task timing and outcome settings
+are authored in `data/intelligence-tasks.json`.
 
 ## Editing simulation data
 
