@@ -37,7 +37,7 @@ public sealed class OperativeManagementTests
 
         Assert.False(system.SetRota(new(operativeId, 0, 600, 900), 0));
         Assert.True(system.SetRota(new(operativeId, 0b0101010, 600, 900), 0));
-        var rota = store.GetEntityById(operativeId).GetComponent<OperativeWorkSchedule>();
+        var rota = store.GetEntityById(operativeId).GetComponent<OperativeRota>();
         Assert.Equal((byte)0b0101010, rota.WorkDaysMask);
         Assert.Equal(600, rota.WorkStartMinute);
         Assert.Equal(900, rota.WorkEndMinute);

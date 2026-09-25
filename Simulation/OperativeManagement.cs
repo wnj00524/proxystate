@@ -4,7 +4,7 @@ using System.Text.Json;
 namespace ProxyState.Simulation;
 
 /// <summary>Player-authored recurring work hours for an operative (Monday is bit zero).</summary>
-public struct OperativeWorkSchedule : IComponent
+public struct OperativeRota : IComponent
 {
     public byte WorkDaysMask;
     public int WorkStartMinute;
@@ -148,7 +148,7 @@ public sealed class OperativeManagementSystem
                      .Where(entity => entity.Tags.Has<OperativeTag>()).ToArray())
         {
             var job = catalog.Jobs.First(item => item.Hash == operative.GetComponent<Identity>().OccupationId);
-            operative.AddComponent(new OperativeWorkSchedule
+            operative.AddComponent(new OperativeRota
             {
                 WorkDaysMask = ToMask(job.WorkDays),
                 WorkStartMinute = job.WorkStartMinute,
@@ -164,7 +164,7 @@ public sealed class OperativeManagementSystem
             .OrderBy(agent => agent.Id).Select(agent =>
         {
             var identity = agent.GetComponent<Identity>();
-            var rota = agent.GetComponent<OperativeWorkSchedule>();
+            var rota = agent.GetComponent<OperativeRota>();
             var task = agent.GetComponent<OperativeAssignment>();
             var job = _catalog.Jobs.FirstOrDefault(item => item.Hash == identity.OccupationId)?.Name ?? "Unknown occupation";
             return new OperativeSnapshot(agent.Id, $"Agent {agent.Id} (Name ID {identity.NameId})",
@@ -181,7 +181,7 @@ public sealed class OperativeManagementSystem
         if (!TryOperative(command.OperativeId, out var agent) || dayMask == 0 ||
             command.WorkStartMinute < 0 || command.WorkEndMinute > SimulationDefaults.SimulationMinutesPerDay ||
             command.WorkStartMinute >= command.WorkEndMinute) return false;
-        ref var rota = ref agent.GetComponent<OperativeWorkSchedule>();
+        ref var rota = ref agent.GetComponent<OperativeRota>();
         var previous = rota;
         rota.WorkDaysMask = dayMask;
         rota.WorkStartMinute = command.WorkStartMinute;

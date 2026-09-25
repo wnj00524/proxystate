@@ -77,7 +77,7 @@ public sealed class CoarseRoutineProfileCache
     public int Count => _profiles.Count;
 
     public CoarseRoutineProfile GetOrCreate(int occupationHash, long traitMask, int commuteMinutes,
-        OperativeWorkSchedule? rota = null)
+        OperativeRota? rota = null)
     {
         if (!_jobs.TryGetValue(occupationHash, out var job))
             throw new InvalidOperationException($"Unknown occupation hash '{occupationHash}' cannot receive a coarse profile.");
@@ -177,7 +177,7 @@ public sealed class CoarseRoutineProfileCache
         if (start != end) output.Add(new(start, end, segment.RuntimeIndex, segment.IntentHash, segment.Location, segment.EffectRole));
     }
 
-    private static ulong Fingerprint(int occupation, long traits, int commute, OperativeWorkSchedule? rota)
+    private static ulong Fingerprint(int occupation, long traits, int commute, OperativeRota? rota)
     {
         // The catalog/topology revisions are represented by this cache's
         // lifetime: replacing either creates a fresh cache with no stale keys.

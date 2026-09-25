@@ -79,7 +79,10 @@ public sealed class VirtualizedInspectionTests
         // these detailed components; reproduce that boundary without mutating it.
         selected.RemoveComponent<ActivityState>();
         selected.RemoveComponent<AgentTravel>();
+        selected.RemoveTag<Tier1LodTag>();
         selected.AddTag<Tier3LodTag>();
+        ref var lod = ref selected.GetComponent<AgentLodState>();
+        lod.DesiredTier = AgentLodTier.Tier3;
         var projection = DebugInspectionProjection.Create(store, catalog);
 
         projection.Select(selected.Id);

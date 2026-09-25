@@ -544,10 +544,11 @@ public sealed class SimulationTests
         root.Update(default);
 
         var time = clock.ClockEntity.GetComponent<WorldTime>();
-        Assert.Equal(SimulationDefaults.SimulationSecondsPerDay, time.ElapsedSimulationSeconds);
+        Assert.Equal(SimulationDefaults.StartingMinuteOfDay * SimulationDefaults.SimulationSecondsPerMinute +
+            SimulationDefaults.SimulationSecondsPerDay, time.ElapsedSimulationSeconds);
         Assert.Equal(1, time.DayIndex);
         Assert.Equal(2, time.DayOfWeek);
-        Assert.Equal(0, time.MinuteOfDay);
+        Assert.Equal(SimulationDefaults.StartingMinuteOfDay, time.MinuteOfDay);
     }
 
     [Fact]
@@ -911,7 +912,7 @@ public sealed class SimulationTests
         var second = secondStore.Query<Identity>().Entities.First();
         Assert.Equal(first.GetComponent<Identity>(), second.GetComponent<Identity>());
         Assert.Equal(first.GetComponent<PoliticalAlignment>(), second.GetComponent<PoliticalAlignment>());
-        Assert.Equal(first.GetComponent<AgentAttributes>().Values, second.GetComponent<AgentAttributes>().Values);
+        Assert.Equal(first.GetComponent<AgentAttributes>().Values.ToArray(), second.GetComponent<AgentAttributes>().Values.ToArray());
         Assert.Equal(first.GetComponent<Psychology>(), second.GetComponent<Psychology>());
         Assert.Equal(first.GetComponent<AgentState>(), second.GetComponent<AgentState>());
     }
