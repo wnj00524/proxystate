@@ -265,7 +265,8 @@ public enum DecisionWakeReason : byte
     TargetLoss = 1 << 0,
     CoordinationLifecycle = 1 << 1,
     Investigation = 1 << 2,
-    Promotion = 1 << 3
+    Promotion = 1 << 3,
+    Schedule = 1 << 4
 }
 
 public struct WorldTime : IComponent

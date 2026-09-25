@@ -79,6 +79,7 @@ public sealed class CoordinationSystem : QuerySystem<CoordinationState>
 
     private static bool IsCoordinatable(Entity entity) =>
         (entity.Tags.Has<Tier1LodTag>() || entity.Tags.Has<Tier2LodTag>()) &&
+        (!entity.TryGetComponent<OperativeAssignment>(out var assignment) || assignment.Kind == OperativeTaskKind.None) &&
         entity.HasComponent<CoordinationState>() && entity.HasComponent<IntentionState>() &&
         entity.HasComponent<ActivityState>() && entity.HasComponent<DecisionState>() &&
         entity.HasComponent<AgentAttributes>() && entity.HasComponent<Psychology>() &&

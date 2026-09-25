@@ -1,0 +1,10 @@
+{
+  "talkDurationMinutes": 240,
+  "maximumFollowMinutes": 10080,
+  "talkSuccessDifference": 12,
+  "followObservationIntervalMinutes": 60,
+  "followConfidenceBase": 0.35,
+  "followConfidencePerSkillPoint": 0.005,
+  "talkSuccessConfidence": 0.55,
+  "talkFailureConfidence": 0.2
+}

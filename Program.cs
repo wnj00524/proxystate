@@ -52,6 +52,9 @@ public static class Program
 
         var intelligence = PlayerIntelligenceDB.Create(store, catalog);
         var investigationCommands = new InvestigationCommandQueue();
+        var operativeManagement = new OperativeManagementSystem(store, catalog, lodService,
+            IntelligenceTaskSettings.Load(contentDirectory));
+        var operativeCommands = new OperativeCommandQueue();
         var interactionSystem = new InteractionSystem(store, catalog, SimulationRandomStreams.Interactions(simulationSeed), socialIndexes: agentSocialIndexes);
         var clock = new WorldClockSystem(store);
         var systems = new SystemRoot(store)
@@ -77,6 +80,8 @@ public static class Program
             Windows31Theme.Apply();
             var applicationShell = new ApplicationShell();
             var dossierWindow = new DossierWindow();
+            var agentsWindow = new AgentsWindow();
+            var reportsWindow = new ReportsWindow();
             var debugWindow = debugMode ? new DebugWindow() : null;
             var debugProjection = debugMode ? DebugInspectionProjection.Create(store, catalog) : null;
 
@@ -87,8 +92,17 @@ public static class Program
                 clock.Advance(Raylib.GetFrameTime());
                 // Commands cross the stable-ID adapter before LOD lifecycle work.
                 investigationCommands.Process(lodService, intelligence);
+                var currentMinute = (long)(clock.ClockEntity.GetComponent<WorldTime>().ElapsedSimulationSeconds /
+                    SimulationDefaults.SimulationSecondsPerMinute);
+                operativeCommands.Process(operativeManagement, currentMinute);
                 lodService.UpdateCoarse((long)(clock.ClockEntity.GetComponent<WorldTime>().ElapsedSimulationSeconds / SimulationDefaults.SimulationSecondsPerMinute));
                 systems.Update(default);
+                var resolvedMinute = (long)(clock.ClockEntity.GetComponent<WorldTime>().ElapsedSimulationSeconds /
+                    SimulationDefaults.SimulationSecondsPerMinute);
+                operativeManagement.Update(
+                    clock.ClockEntity.GetComponent<WorldTime>().DeltaSimulationSeconds /
+                    SimulationDefaults.SimulationSecondsPerMinute, resolvedMinute);
+                intelligence.Apply(operativeManagement.Capture(resolvedMinute));
                 politicalSystem.Update();
                 factionSystem.Update(clock.ClockEntity.GetComponent<WorldTime>().DayIndex + 1);
                 researchSystem.Update();
@@ -103,6 +117,8 @@ public static class Program
                 applicationShell.DrawDossiersWindow(intelligence, catalog.Traits, dossierWindow,
                     investigationCommands.Enqueue);
                 applicationShell.DrawResearchWindows(researchSystem.GetProviderProjections());
+                applicationShell.DrawOperativeWindows(intelligence.OperativeManagement!, intelligence,
+                    agentsWindow, reportsWindow, operativeCommands.Enqueue);
                 if (debugWindow is not null && applicationShell.DebugWindowOpen)
                 {
                     // Only a changed selection crosses the on-demand copy boundary.

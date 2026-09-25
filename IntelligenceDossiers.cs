@@ -50,6 +50,12 @@ public sealed class PlayerIntelligenceDB
 
     public IReadOnlyList<PlayerIntelligenceAgentSnapshot> Agents => _readOnlyAgents;
 
+    /// <summary>Sanitized operative schedules, assignments, and task reports.</summary>
+    public OperativeManagementProjection? OperativeManagement { get; private set; }
+
+    public void Apply(OperativeManagementProjection projection) =>
+        OperativeManagement = projection ?? throw new ArgumentNullException(nameof(projection));
+
     public PlayerIntelligenceProjectionDiagnostics Diagnostics { get; }
 
     // Identities are immutable after bootstrap. UI search caches can therefore
