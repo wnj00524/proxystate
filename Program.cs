@@ -22,6 +22,22 @@ public static class Program
         var debugMode = options.DebugMode;
         var contentDirectory = Path.Combine(AppContext.BaseDirectory, "data");
         var catalog = ContentCatalog.Load(contentDirectory);
+        if (options.Headless)
+        {
+            try
+            {
+                var report = HeadlessSimulationRunner.Run(catalog, options.AgentCount, options.Days!.Value,
+                    options.Seed, Console.WriteLine);
+                var paths = HeadlessSimulationRunner.WriteReports(report, options.ReportPrefix);
+                Console.WriteLine($"Political diagnostics written to {paths.MarkdownPath} and {paths.JsonPath}");
+                return 0;
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
+            {
+                Console.Error.WriteLine($"Headless simulation failed: {exception.Message}");
+                return 1;
+            }
+        }
         var store = new EntityStore();
         var spawner = new AgentSpawner(catalog);
 
@@ -47,6 +63,8 @@ public static class Program
             new ActivityEffectsSystem(catalog, clock.ClockEntity),
             interactionSystem
         };
+        var politicalSystem = new PoliticalSystem(store, catalog, clock.ClockEntity, agentSocialIndexes, lodService);
+        var factionSystem = new PoliticalFactionSystem(store, catalog, agentSocialIndexes, lodService);
 
         Raylib.InitWindow(1280, 720, "Proxy State - Applications");
         Raylib.SetTargetFPS(60);
@@ -69,6 +87,8 @@ public static class Program
                 investigationCommands.Process(lodService, intelligence);
                 lodService.UpdateCoarse((long)(clock.ClockEntity.GetComponent<WorldTime>().ElapsedSimulationSeconds / SimulationDefaults.SimulationSecondsPerMinute));
                 systems.Update(default);
+                politicalSystem.Update();
+                factionSystem.Update(clock.ClockEntity.GetComponent<WorldTime>().DayIndex + 1);
                 foreach (var discovery in interactionSystem.DrainOperativeDiscoveries()) intelligence.Apply(discovery);
                 var worldTime = WorldTimeSnapshot.From(clock.ClockEntity.GetComponent<WorldTime>());
 

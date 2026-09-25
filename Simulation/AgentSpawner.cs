@@ -9,6 +9,7 @@ public sealed class AgentSpawner
     private readonly WorldTopology _world;
     private readonly SocialGraphBuilder _socialGraphBuilder;
     private readonly AgentNetworkBuilder _networkBuilder;
+    private readonly JobDefinition[] _populationJobs;
 
     // The same snapshot owner is retained across explicit population rebuilds;
     // downstream systems can safely keep this reference for later milestones.
@@ -24,6 +25,9 @@ public sealed class AgentSpawner
         _world = catalog.World;
         _socialGraphBuilder = socialGraphBuilder ?? new SocialGraphBuilder(catalog.Networks);
         _networkBuilder = new AgentNetworkBuilder(catalog.Networks);
+        _populationJobs = catalog.Jobs.Where(job => job.SelectionMethod is null && job.FactionRole is null).ToArray();
+        if (_populationJobs.Length == 0)
+            throw new InvalidDataException("At least one non-political job is required for population assignment.");
     }
 
     public int Spawn(EntityStore store, int count, Random random)
@@ -49,7 +53,7 @@ public sealed class AgentSpawner
         var assignments = new List<AgentWorldAssignment>(count);
         for (var index = 0; index < count; index++)
         {
-            var job = _catalog.Jobs[populationRandom.Next(_catalog.Jobs.Count)];
+            var job = _populationJobs[populationRandom.Next(_populationJobs.Length)];
             var home = ChooseLocation(populationRandom, SimulationDefaults.ResidentialLocationType);
             var workplace = ChooseLocation(populationRandom, job.WorkplaceType);
             var route = _world.FindShortestRoute(home.Hash, workplace.Hash)
@@ -123,6 +127,8 @@ public sealed class AgentSpawner
                     Mode = AgentTravelMode.Stationary
                 });
 
+            entity.AddComponent<PoliticalParticipation>();
+            entity.AddComponent(new FactionParticipation { FactionId = byte.MaxValue });
             entity.AddComponent(new AgentCommute { TravelMinutes = assignment.Route.TravelMinutes });
             lodService.InitializeTierOne(entity,
                 isOperative ? AgentInterestReason.Operative : AgentInterestReason.None);

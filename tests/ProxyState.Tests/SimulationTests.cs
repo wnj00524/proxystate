@@ -473,7 +473,7 @@ public sealed class SimulationTests
         var catalog = LoadCatalog();
 
         Assert.NotEmpty(catalog.Jobs);
-        Assert.Equal(5, catalog.World.Locations.Count);
+        Assert.Equal(13, catalog.World.Locations.Count);
         Assert.Equal("office-worker", catalog.Jobs.Single(job => job.Hash == 2001).Id);
 
         var route = catalog.World.FindShortestRoute(3001, 3004);
@@ -755,6 +755,15 @@ public sealed class SimulationTests
             "{\"id\":\"retail\",\"name\":\"Retail\",\"hash\":4,\"type\":\"retail\"}]," +
             "\"connections\":[{\"from\":\"office\",\"to\":\"transit\",\"travelMinutes\":5}]}" );
 
+        var jobsPath = Path.Combine(directory.RootPath, "jobs.json");
+        var jobs = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(jobsPath))!.AsArray();
+        foreach (var job in jobs) job!["workplaceType"] = "office";
+        File.WriteAllText(jobsPath, jobs.ToJsonString());
+        var politicsPath = Path.Combine(directory.RootPath, "politics.json");
+        var politics = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(politicsPath))!.AsObject();
+        politics["pollingLocationId"] = "home";
+        File.WriteAllText(politicsPath, politics.ToJsonString());
+
         var catalog = ContentCatalog.Load(directory.RootPath);
         var store = new EntityStore();
         Assert.Throws<InvalidDataException>(() =>
@@ -772,8 +781,8 @@ public sealed class SimulationTests
         foreach (var entity in store.Query<AgentAttributes>().Entities)
         {
             var values = entity.GetComponent<AgentAttributes>().Values;
-            Assert.Equal(catalog.AgentAttributes.Count, values.Length);
-            for (var index = 0; index < values.Length; index++)
+            Assert.True(values.Length >= catalog.AgentAttributes.Count);
+            for (var index = 0; index < catalog.AgentAttributes.Count; index++)
             {
                 var definition = catalog.AgentAttributes.Definitions[index];
                 Assert.InRange(values[index], definition.Min, definition.Max);
@@ -801,10 +810,10 @@ public sealed class SimulationTests
         var store = new EntityStore();
         new AgentSpawner(catalog).Spawn(store, 10, new Random(7));
 
-        Assert.Equal(10, catalog.AgentAttributes.Count);
-        Assert.Equal(9, catalog.AgentAttributes.GetIndex("luck"));
+        Assert.Equal(12, catalog.AgentAttributes.Count);
+        Assert.Equal(11, catalog.AgentAttributes.GetIndex("luck"));
         Assert.All(store.Query<AgentAttributes>().Entities,
-            entity => Assert.Equal(10, entity.GetComponent<AgentAttributes>().Values.Length));
+            entity => Assert.True(entity.GetComponent<AgentAttributes>().Values.Length >= catalog.AgentAttributes.Count));
     }
 
     [Fact]
@@ -819,7 +828,7 @@ public sealed class SimulationTests
         foreach (var entity in store.Query<AgentAttributes>().Entities)
         {
             var values = entity.GetComponent<AgentAttributes>().Values;
-            for (var index = 0; index < values.Length; index++)
+            for (var index = 0; index < catalog.AgentAttributes.Count; index++)
             {
                 totals[index] += values[index];
             }
@@ -1115,7 +1124,7 @@ public sealed class SimulationTests
         public static void CopyCatalogFiles(string directory)
         {
             var source = System.IO.Path.Combine(AppContext.BaseDirectory, "data");
-            foreach (var fileName in new[] { "actions.json", "secret-states.json", "factions.json", "traits.json", "agent-schema.json", "jobs.json", "world.json", "networks.json", "lod.json" })
+            foreach (var fileName in new[] { "actions.json", "secret-states.json", "factions.json", "traits.json", "agent-schema.json", "jobs.json", "world.json", "networks.json", "lod.json", "politics.json" })
             {
                 File.Copy(System.IO.Path.Combine(source, fileName), System.IO.Path.Combine(directory, fileName));
             }

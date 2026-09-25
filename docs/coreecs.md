@@ -134,6 +134,16 @@ The system is configured with an optional positive per-tick increase so simulati
 * The bar is pinned to the bottom edge of the ImGui viewport and displays the simulation day, weekday, and time of day.
 * Formatting uses only the copied snapshot; it never reads the local system clock or the Ground Truth ECS store.
 
+### 4.8 City Political System
+
+**Goal:** Resolve candidate registration, physical voting, elections, and public appointments from JSON-authored city rules.
+
+* `politics.json` defines the election interval, nomination period, polling hours and location, turnout attributes, and decision weights.
+* `PoliticalSystem` considers each agent using components retained at every LOD tier. A candidate or voter takes a timed trip to the configured polling location; detailed decision and execution systems pause while that trip is active, and Tier 3 routine updates preserve its location.
+* Political engagement and motivation shape candidacy and turnout. Social contacts' engagement supplies encouragement pressure; travel distance and overlap with scheduled work reduce turnout.
+* Ballots prefer candidates who share the voter's faction; charisma breaks ties within the preferred faction. After polls close, the highest-vote candidate receives each elected job.
+* Appointed jobs name an elected appointing job. Its officeholder chooses from registered applicants by faction preference, engagement, and charisma. Prior occupations are restored when an election replaces officeholders.
+
 ### 4.8 Applications Launcher and Window Navigation
 
 * `ApplicationShell` renders the `Applications` program-manager window and exposes only the applications allowed by the process mode: `Dossiers` always appears, while `Debug Window` appears only with `-debug`.
@@ -433,3 +443,49 @@ leaking ECS entities into ordinary presentation code.
 * `CoarseRoutineSystem.AgentVisits`, surfaced read-only by `AgentLodService`, is
   a deterministic diagnostic count of actual shard/catch-up visits. It remains
   Ground Truth instrumentation and never crosses into player intelligence.
+
+### 4.23 Political Faction Leadership and Strategy
+
+**Goal:** Let factions organize people, build influence, and compete for
+elected civic power through data-authored strategy.
+
+* `PoliticalFactionSystem` owns membership decisions and daily goal execution.
+  It recruits from politically aligned residents using political engagement,
+  motivation, and social pressure; agents can also accept recruitment or leave
+  through explicit membership operations. Membership is exclusive, separate
+  from alignment, and volunteers keep their occupation.
+* Faction leader jobs are internal elected seats added to the same recurring
+  physical Town Hall election. Only members may register for or vote on their
+  faction's leader seat. Volunteers with strong engagement and motivation may
+  apply for staff work; elected leaders choose high-engagement applicants for
+  the faction's full-time activist job; those occupations are excluded from
+  random population assignment.
+* `factions.json` provides each faction's meta goal and branching subgoals.
+  Leaders select the highest-priority unmet goal whose prerequisites are
+  complete. Recruiting changes membership; organizing raises organization;
+  campaigning raises public support; office-seeking and governing goals are
+  completed against actual elected or appointed civic offices held by agents
+  aligned with the faction.
+* Faction and political components remain on all LOD tiers. Daily membership,
+  strategy, applications, and election resolution include coarse agents, while
+  coarse routine execution remains independent of the faction system.
+
+### 4.24 Headless Political Diagnostics
+
+* `--headless --days <1-3650>` runs the same world clock, LOD lifecycle,
+  decision, coordination, movement, activity, interaction, election, and
+  faction systems without initializing Raylib or ImGui. Optional `--agents`,
+  `--seed`, and `--report` select population size, deterministic run seed, and
+  report prefix; the default seed is 17001 and the default prefix is
+  `politics-report` in the current directory.
+* The runner advances exactly one simulated minute per system update. Population,
+  social-network, operative, and interaction random streams derive from the
+  selected seed. Daily faction projections are captured at the end of each
+  simulated day. Political decision and trip events and per-cycle election
+  outcomes are retained in memory until both report formats are written.
+  The console reports startup parameters, each day's start and completion,
+  total elapsed time, and a remaining-time estimate based on completed days.
+* The JSON report carries a schema version and the same political events,
+  faction snapshots, officeholders, tallies, winners, and appointments as the
+  Markdown report. This path is diagnostic Ground Truth output; it does not
+  change the interactive intelligence boundary because no player UI is active.

@@ -50,6 +50,17 @@ public sealed class AgentLodService : IDisposable
         ProcessScheduledDemotions();
     }
 
+    /// <summary>Rebuilds a Tier 3 routine key after an elected office changes occupation or commute.</summary>
+    public void RefreshCoarseProfile(Entity entity)
+    {
+        RequireManagedAgent(entity);
+        if (!entity.Tags.Has<Tier3LodTag>()) return;
+        var minute = CurrentMinute();
+        _coarse!.CatchUp(entity, minute);
+        _coarse.Remove(entity);
+        _coarse.Add(entity, minute);
+    }
+
     /// <summary>Classifies the completed population after all relationship indexes exist.</summary>
     public void InitializeClassification()
     {

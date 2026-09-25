@@ -71,7 +71,12 @@ public sealed class CoarseRoutineSystem
         agent.GetComponent<AgentAttributes>().Values = values;
         var current = resolvedProfile.GetSegment(currentMinute - 1);
         ref var location = ref agent.GetComponent<AgentLocation>();
-        location.CurrentLocationId = current.Location == CoarseRoutineLocation.Home ? location.HomeLocationId : location.WorkLocationId;
+        // A coarse agent keeps the physical polling location for the duration
+        // of an election trip instead of snapping back to its routine node.
+        var onPoliticalTrip = agent.TryGetComponent<PoliticalParticipation>(out var politics) &&
+            politics.TripKind != PoliticalTripKind.None;
+        if (!onPoliticalTrip)
+            location.CurrentLocationId = current.Location == CoarseRoutineLocation.Home ? location.HomeLocationId : location.WorkLocationId;
         state.LastCoarseSimulatedMinute = currentMinute;
     }
 

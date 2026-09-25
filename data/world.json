@@ -4,12 +4,28 @@
     { "id": "south-homes", "name": "South Homes", "hash": 3002, "type": "residential" },
     { "id": "town-square", "name": "Town Square", "hash": 3003, "type": "transit" },
     { "id": "civic-offices", "name": "Civic Offices", "hash": 3004, "type": "office" },
-    { "id": "market-street", "name": "Market Street", "hash": 3005, "type": "retail" }
+    { "id": "market-street", "name": "Market Street", "hash": 3005, "type": "retail" },
+    { "id": "town-hall", "name": "Town Hall", "hash": 3006, "type": "civic" },
+    { "id": "town-school", "name": "Town School", "hash": 3007, "type": "school" },
+    { "id": "town-clinic", "name": "Town Clinic", "hash": 3008, "type": "clinic" },
+    { "id": "police-station", "name": "Police Station", "hash": 3009, "type": "police-station" },
+    { "id": "factory", "name": "Town Factory", "hash": 3010, "type": "factory" },
+    { "id": "workshop", "name": "Building Yard", "hash": 3011, "type": "workshop" },
+    { "id": "restaurant", "name": "Market Restaurant", "hash": 3012, "type": "restaurant" },
+    { "id": "transit-depot", "name": "Bus Depot", "hash": 3013, "type": "transit-depot" }
   ],
   "connections": [
     { "from": "north-homes", "to": "town-square", "travelMinutes": 15 },
     { "from": "south-homes", "to": "town-square", "travelMinutes": 12 },
     { "from": "town-square", "to": "civic-offices", "travelMinutes": 10 },
-    { "from": "town-square", "to": "market-street", "travelMinutes": 8 }
+    { "from": "town-square", "to": "market-street", "travelMinutes": 8 },
+    { "from": "town-square", "to": "town-hall", "travelMinutes": 6 },
+    { "from": "town-square", "to": "town-school", "travelMinutes": 12 },
+    { "from": "town-square", "to": "town-clinic", "travelMinutes": 9 },
+    { "from": "town-square", "to": "police-station", "travelMinutes": 7 },
+    { "from": "town-square", "to": "factory", "travelMinutes": 16 },
+    { "from": "town-square", "to": "workshop", "travelMinutes": 14 },
+    { "from": "town-square", "to": "restaurant", "travelMinutes": 5 },
+    { "from": "town-square", "to": "transit-depot", "travelMinutes": 11 }
   ]
 }

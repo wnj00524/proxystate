@@ -10,6 +10,7 @@ internal static class SimulationRandomStreams
     public static Random Operatives(int seed) => Create(seed, 0x85A308D3u);
     public static Random Networks(int seed) => Create(seed, 0x13198A2Eu);
     public static Random SocialGraph(int seed) => Create(seed, 0x03707344u);
+    public static Random Interactions(int seed) => Create(seed, 0xA4093822u);
 
     private static Random Create(int seed, uint stream)
     {

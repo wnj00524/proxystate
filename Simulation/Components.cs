@@ -69,6 +69,41 @@ public struct PoliticalAlignment : IComponent
     public byte FactionId;
 }
 
+// Membership is separate from political alignment and remains available to
+// elections and faction strategy at every LOD tier.
+public struct FactionParticipation : IComponent
+{
+    public byte FactionId;
+    public FactionMemberRole Role;
+    public int PreviousOccupationId;
+    public int LastRecruitmentDecisionDay;
+    public bool AppliedForStaff;
+}
+
+public enum FactionMemberRole : byte { None, Volunteer, Activist, Leader }
+
+// This state stays on every LOD tier so candidacy, trips, ballots, and offices
+// remain authoritative even when detailed decision components are removed.
+public struct PoliticalParticipation : IComponent
+{
+    public int CandidateJobHash;
+    public int CandidateElectionId;
+    public int VotedElectionId;
+    public int VotingDecisionElectionId;
+    public int PreviousOccupationId;
+    public int TripOriginLocationId;
+    public int TripElectionId;
+    public int TripOfficeHash;
+    public long TripDepartureMinute;
+    public long TripArrivalMinute;
+    public long TripReturnMinute;
+    public PoliticalTripKind TripKind;
+    public bool TripInProgress;
+    public bool TripArrived;
+}
+
+public enum PoliticalTripKind : byte { None, Nomination, Polling }
+
 public struct Psychology : IComponent
 {
     public long TraitMask;
