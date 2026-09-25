@@ -119,9 +119,18 @@ public sealed class AgentDecisionSystem : QuerySystem<Identity, AgentAttributes,
         Query.ForEachEntity((ref Identity identity, ref AgentAttributes attributes, ref Psychology psychology,
             ref AgentLocation location, ref AgentTravel travel, Entity entity) =>
         {
+            if (entity.TryGetComponent<OperativeAssignment>(out var assignment) && assignment.Kind != OperativeTaskKind.None) return;
             if (entity.TryGetComponent<PoliticalParticipation>(out var political) &&
                 political.TripKind != PoliticalTripKind.None) return;
             if (!_jobs.TryGetValue(identity.OccupationId, out var job)) return;
+            if (entity.TryGetComponent<OperativeWorkSchedule>(out var rota))
+                job = job with
+                {
+                    WorkDays = Enumerable.Range(1, SimulationDefaults.DaysPerWeek)
+                        .Where(day => (rota.WorkDaysMask & (1 << (day - 1))) != 0).ToList(),
+                    WorkStartMinute = rota.WorkStartMinute,
+                    WorkEndMinute = rota.WorkEndMinute
+                };
             ref var intention = ref entity.GetComponent<IntentionState>();
             ref var decision = ref entity.GetComponent<DecisionState>();
             var currentActionHash = intention.ActionHash;
@@ -476,6 +485,7 @@ public sealed class ActivityEffectsSystem : QuerySystem<AgentAttributes, Activit
         if (minutes <= 0f) return;
         Query.ForEachEntity((ref AgentAttributes attributes, ref ActivityState activity, ref DecisionState decision, Entity entity) =>
         {
+            if (entity.TryGetComponent<OperativeAssignment>(out var assignment) && assignment.Kind != OperativeTaskKind.None) return;
             if (activity.Phase != ActivityPhase.Performing) return;
             if (!_effects.TryGetValue((activity.ActionHash, activity.ActivityTypeHash), out var effects)) return;
             var role = entity.HasComponent<CoordinationState>()

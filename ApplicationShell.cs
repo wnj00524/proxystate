@@ -50,6 +50,9 @@ public sealed class ApplicationShell
     public const string NorthstarWindowTitle = "Northstar Opinion";
     public const string TownlineWindowTitle = "Townline Research";
 
+    public bool AgentsWindowOpen { get; private set; }
+    public bool ReportsWindowOpen { get; private set; }
+
     private ApplicationId? _selectedApplication;
 
     public bool DossiersOpen { get; private set; }
@@ -91,6 +94,12 @@ public sealed class ApplicationShell
         {
             ImGui.Text("Proxy State Program Manager");
             ImGui.TextDisabled("Double-click an icon to launch");
+            ImGui.Separator();
+
+            // Standalone management windows remain outside the Applications catalog.
+            if (ImGui.Button("Agents")) AgentsWindowOpen = true;
+            ImGui.SameLine();
+            if (ImGui.Button("Reports")) ReportsWindowOpen = true;
             ImGui.Separator();
 
             foreach (var application in ApplicationCatalog.GetAvailable(debugMode))
@@ -160,6 +169,28 @@ public sealed class ApplicationShell
             var open = TownlineWindowOpen;
             PoliticalResearchWindow.Draw(townline, TownlineWindowTitle, ref open);
             TownlineWindowOpen = open;
+        }
+    }
+
+    public void DrawOperativeWindows(OperativeManagementProjection management,
+        PlayerIntelligenceDB intelligence, AgentsWindow agentsWindow, ReportsWindow reportsWindow,
+        Action<OperativeCommand> commandSink)
+    {
+        ArgumentNullException.ThrowIfNull(management);
+        ArgumentNullException.ThrowIfNull(intelligence);
+        ArgumentNullException.ThrowIfNull(agentsWindow);
+        ArgumentNullException.ThrowIfNull(reportsWindow);
+        if (AgentsWindowOpen)
+        {
+            var open = AgentsWindowOpen;
+            agentsWindow.Draw(management, intelligence.Agents, commandSink, ref open);
+            AgentsWindowOpen = open;
+        }
+        if (ReportsWindowOpen)
+        {
+            var open = ReportsWindowOpen;
+            reportsWindow.Draw(management, ref open);
+            ReportsWindowOpen = open;
         }
     }
 

@@ -76,12 +76,21 @@ public sealed class CoarseRoutineProfileCache
 
     public int Count => _profiles.Count;
 
-    public CoarseRoutineProfile GetOrCreate(int occupationHash, long traitMask, int commuteMinutes)
+    public CoarseRoutineProfile GetOrCreate(int occupationHash, long traitMask, int commuteMinutes,
+        OperativeWorkSchedule? rota = null)
     {
         if (!_jobs.TryGetValue(occupationHash, out var job))
             throw new InvalidOperationException($"Unknown occupation hash '{occupationHash}' cannot receive a coarse profile.");
         if (commuteMinutes < 0) throw new ArgumentOutOfRangeException(nameof(commuteMinutes));
-        var fingerprint = Fingerprint(occupationHash, traitMask, commuteMinutes);
+        if (rota is { } schedule)
+            job = job with
+            {
+                WorkDays = Enumerable.Range(1, SimulationDefaults.DaysPerWeek)
+                    .Where(day => (schedule.WorkDaysMask & (1 << (day - 1))) != 0).ToList(),
+                WorkStartMinute = schedule.WorkStartMinute,
+                WorkEndMinute = schedule.WorkEndMinute
+            };
+        var fingerprint = Fingerprint(occupationHash, traitMask, commuteMinutes, rota);
         if (_profiles.TryGetValue(fingerprint, out var existing)) return existing;
         var profile = new CoarseRoutineProfile(_nextId++, fingerprint, BuildWeek(job, traitMask, commuteMinutes));
         _profiles.Add(fingerprint, profile);
@@ -168,12 +177,14 @@ public sealed class CoarseRoutineProfileCache
         if (start != end) output.Add(new(start, end, segment.RuntimeIndex, segment.IntentHash, segment.Location, segment.EffectRole));
     }
 
-    private static ulong Fingerprint(int occupation, long traits, int commute)
+    private static ulong Fingerprint(int occupation, long traits, int commute, OperativeWorkSchedule? rota)
     {
         // The catalog/topology revisions are represented by this cache's
         // lifetime: replacing either creates a fresh cache with no stale keys.
         var value = 14695981039346656037UL;
-        foreach (var part in new[] { occupation, (int)traits, (int)(traits >> 32), commute, 1, 1 })
+        var schedule = rota.GetValueOrDefault();
+        foreach (var part in new[] { occupation, (int)traits, (int)(traits >> 32), commute,
+                     schedule.WorkDaysMask, schedule.WorkStartMinute, schedule.WorkEndMinute })
         { value ^= unchecked((uint)part); value *= 1099511628211UL; }
         return value;
     }

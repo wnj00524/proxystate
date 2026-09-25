@@ -103,6 +103,7 @@ public sealed class IntentExecutionSystem : QuerySystem<AgentLocation, AgentTrav
             ref IntentionState intention, ref ActivityState activity,
             ref DecisionState decision, Entity entity) =>
         {
+            if (entity.TryGetComponent<OperativeAssignment>(out var assignment) && assignment.Kind != OperativeTaskKind.None) return;
             if (entity.TryGetComponent<PoliticalParticipation>(out var political) &&
                 political.TripKind != PoliticalTripKind.None) return;
             if (!_executors.TryGetValue(intention.ActionHash, out var executor))
