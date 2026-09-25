@@ -358,6 +358,7 @@ public struct AgentAttributes : IComponent
 
 public static class SimulationDefaults
 {
+    public const int StartingMinuteOfDay = 9 * 60;
     public const int AgentCount = 1_000;
     public const float FatigueStressIncreasePerTick = 0.1f;
     public const float MaximumFatigueStress = 100f;

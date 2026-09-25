@@ -23,7 +23,11 @@ public sealed class WorldClockSystem : QuerySystem<WorldTime>
 
         _clockEntity = clocks.Count == 1
             ? clocks.First()
-            : store.CreateEntity(new WorldTime());
+            : store.CreateEntity(new WorldTime
+            {
+                ElapsedSimulationSeconds = SimulationDefaults.StartingMinuteOfDay *
+                    SimulationDefaults.SimulationSecondsPerMinute
+            });
     }
 
     public Entity ClockEntity => _clockEntity;

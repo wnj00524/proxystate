@@ -337,7 +337,7 @@ public readonly record struct WorldTimeSnapshot(
     int MinuteOfDay);
 ```
 
-The application creates this snapshot after the clock and simulation systems update. `WorldTimeBar` renders it without retaining or querying the ECS clock entity, preserving the intelligence isolation boundary for the ImGui layer. The bar receives the selected speed and a clock-setting callback separately; its four controls select 600, 300, 60, or 30 real seconds per in-world day (speeds 1–4).
+The application creates this snapshot after the clock and simulation systems update. `WorldTimeBar` renders it without retaining or querying the ECS clock entity, preserving the intelligence isolation boundary for the ImGui layer. The bar receives the selected speed and a clock-setting callback separately; its four controls select 600, 300, 60, or 30 real seconds per in-world day (speeds 1–4). A newly created `WorldClockSystem` initializes its singleton to Day 1, Monday, 09:00; a preexisting singleton is preserved.
 
 ### 2.5 Application Launcher State
 
