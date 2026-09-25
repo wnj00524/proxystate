@@ -94,6 +94,7 @@ The system is configured with an optional positive per-tick increase so simulati
 **Goal:** Advance a shared world calendar independently of rendering frame rate.
 
 * Store one `WorldTime` component as the world-time singleton.
+* A newly created clock starts on Day 1 (Monday) at 09:00. An existing clock singleton keeps its supplied time.
 * Convert real elapsed seconds to simulation seconds using the selected speed: speed 1 is 600 real seconds per day (default), speed 2 is 300, speed 3 is 60, and speed 4 is 30. The interactive control changes the clock rate immediately; headless runs retain deterministic minute stepping.
 * Keep the last simulation delta on `WorldTime` so time-based systems consume the same elapsed interval.
 * Job schedules use Monday as day `1`, integer minutes from midnight, and non-overnight intervals.
