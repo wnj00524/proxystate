@@ -40,9 +40,9 @@ public static class WorldTimeFormatter
 
 public static class WorldTimeBar
 {
-    private const float Height = 32f;
+    private const float Height = 36f;
 
-    public static void Draw(WorldTimeSnapshot time)
+    public static void Draw(WorldTimeSnapshot time, int speed, Action<int> setSpeed)
     {
         var displaySize = ImGui.GetIO().DisplaySize;
         if (displaySize.X <= 0f || displaySize.Y <= 0f)
@@ -66,6 +66,15 @@ public static class WorldTimeBar
         if (ImGui.Begin("##world-time-bar", flags))
         {
             ImGui.Text($"WORLD TIME  {WorldTimeFormatter.Format(time)}");
+            ImGui.SameLine(MathF.Max(0f, displaySize.X - 300f));
+            ImGui.Text("SPEED");
+            for (var option = 1; option <= 4; option++)
+            {
+                ImGui.SameLine();
+                if (option == speed) ImGui.PushStyleColor(ImGuiCol.Button, new System.Numerics.Vector4(0.25f, 0.36f, 0.48f, 1f));
+                if (ImGui.SmallButton($"{option}x##world-speed-{option}")) setSpeed(option);
+                if (option == speed) ImGui.PopStyleColor();
+            }
         }
 
         ImGui.End();

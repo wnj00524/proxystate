@@ -34,7 +34,7 @@ traits from `data/traits.json`, secret states from `data/secret-states.json`,
 jobs from `data/jobs.json`, agent-network definitions from `data/networks.json`,
 and the location network from `data/world.json`. It
 then opens the Raylib canvas and the ImGui
-Applications program manager. One in-world day advances in about ten real minutes, and
+Applications program manager. One in-world day advances in about ten real minutes by default; use the clock-bar speed buttons to select five minutes, one minute, or thirty seconds per day, and
 agents commute along shortest-time routes between assigned homes and workplaces.
 The `Applications` window acts as the program manager: double-click `Dossiers`
 to open the `Surveillance Terminal`, or, in debug mode, double-click the

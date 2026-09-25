@@ -94,7 +94,7 @@ The system is configured with an optional positive per-tick increase so simulati
 **Goal:** Advance a shared world calendar independently of rendering frame rate.
 
 * Store one `WorldTime` component as the world-time singleton.
-* Convert real elapsed seconds to simulation seconds using `600` real seconds per in-world day by default.
+* Convert real elapsed seconds to simulation seconds using the selected speed: speed 1 is 600 real seconds per day (default), speed 2 is 300, speed 3 is 60, and speed 4 is 30. The interactive control changes the clock rate immediately; headless runs retain deterministic minute stepping.
 * Keep the last simulation delta on `WorldTime` so time-based systems consume the same elapsed interval.
 * Job schedules use Monday as day `1`, integer minutes from midnight, and non-overnight intervals.
 
@@ -132,6 +132,7 @@ The system is configured with an optional positive per-tick increase so simulati
 * After the ECS update, the bootstrapper copies the singleton `WorldTime` values into a `WorldTimeSnapshot`.
 * The shared ImGui phase renders `WorldTimeBar` after the normal and optional debug windows, so the same bar appears in both modes.
 * The bar is pinned to the bottom edge of the ImGui viewport and displays the simulation day, weekday, and time of day.
+* Four compact speed buttons share the bar, with the selected speed highlighted. The callback changes the clock setting; the UI still receives a copied calendar snapshot and never queries the ECS store.
 * Formatting uses only the copied snapshot; it never reads the local system clock or the Ground Truth ECS store.
 
 ### 4.8 City Political System

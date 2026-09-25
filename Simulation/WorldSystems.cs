@@ -5,8 +5,11 @@ namespace ProxyState.Simulation;
 
 public sealed class WorldClockSystem : QuerySystem<WorldTime>
 {
+    private static readonly double[] RealSecondsPerDayBySpeed =
+        { SimulationDefaults.RealSecondsPerSimulationDay, 300d, 60d, 30d };
     private readonly Entity _clockEntity;
     private double _pendingRealSeconds;
+    private int _speed = 1;
 
     public WorldClockSystem(EntityStore store)
     {
@@ -25,6 +28,18 @@ public sealed class WorldClockSystem : QuerySystem<WorldTime>
 
     public Entity ClockEntity => _clockEntity;
 
+    /// <summary>Selected interactive simulation speed, from 1 (default) to 4.</summary>
+    public int Speed
+    {
+        get => _speed;
+        set
+        {
+            if (value is < 1 or > 4)
+                throw new ArgumentOutOfRangeException(nameof(value), "Simulation speed must be between 1 and 4.");
+            _speed = value;
+        }
+    }
+
     public void Advance(double realElapsedSeconds)
     {
         if (!double.IsFinite(realElapsedSeconds) || realElapsedSeconds < 0d)
@@ -38,7 +53,7 @@ public sealed class WorldClockSystem : QuerySystem<WorldTime>
     protected override void OnUpdate()
     {
         var simulationSeconds = _pendingRealSeconds *
-            (SimulationDefaults.SimulationSecondsPerDay / SimulationDefaults.RealSecondsPerSimulationDay);
+            (SimulationDefaults.SimulationSecondsPerDay / RealSecondsPerDayBySpeed[_speed - 1]);
         _pendingRealSeconds = 0d;
 
         Query.ForEachEntity((ref WorldTime time, Entity _) =>
