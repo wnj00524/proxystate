@@ -153,3 +153,7 @@ Milestone 16 adds compiled network relationship selectors, target attributes,
 and a generic mutual-coordination lifecycle. All six relationship behaviors and
 their participant scoring remain authored in JSON; runtime systems never branch
 on behavior, network, or role IDs.
+
+## Non-technical documentation
+
+For a plain-English explanation of the simulation, the player-facing systems, and a file-by-file description of what the major parts of the program do, see [docs/non-technical-guide.md](docs/non-technical-guide.md).
