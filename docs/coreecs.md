@@ -510,3 +510,28 @@ The Northstar Opinion and Townline Research applications receive immutable
 `ResearchProviderProjection` copies. They display aggregate results and trend
 lines without querying ECS or exposing individual answers, sample identities,
 or occupancy state. The service runs in both interactive and headless loops.
+
+### 4.26 Operative Management and Reports
+
+`OperativeManagementSystem` is the simulation-side owner of the five
+player-controlled Operatives' editable rotas, active follow/talk assignments,
+and completed intelligence reports. `OperativeCommandQueue` accepts stable-ID
+commands from ImGui and validates team membership, target IDs, one-task limits,
+durations, and rota times before mutation. Rota changes update detailed
+schedule facts and refresh the shared Tier 3 routine profile if needed.
+
+An active task pauses the operative's normal decision, movement, coordination,
+and activity effects. Its travel follows the selected target through the
+world's shortest-time routes. Follow assignments capture periodic sightings
+and observed coordination partners only when the operative and target share a
+location. Talk assignments end after the configured interview window; access
+and operative charisma versus target willpower determine whether views are
+recorded. Successful and failed outcomes both produce an assessment.
+
+Task behavior is configured in `data/intelligence-tasks.json`. Each report
+separates a short assessment and confidence from immutable evidence rows with
+simulation time, source operative, subject, observation kind, and detail.
+`PlayerIntelligenceDB` receives the copied `OperativeManagementProjection`;
+the standalone `Agents` and `Reports` windows render only that projection and
+the existing player-intelligence identity list. They do not query Ground Truth
+entities. Target selection is clipped to visible rows at large populations.

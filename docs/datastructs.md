@@ -347,11 +347,13 @@ The application creates this snapshot after the clock and simulation systems upd
 public enum ApplicationId
 {
     Dossiers,
+    NorthstarOpinion,
+    TownlineResearch,
     DebugWindow
 }
 ```
 
-`ApplicationIcon` pairs an application identifier with its launcher label and compact icon glyph. `ApplicationShell` keeps the selected icon and open/closed presentation state for the `Surveillance Terminal` and `Debug Window`; it contains no ECS entity references or simulation data.
+`ApplicationIcon` pairs an application identifier with its launcher label and compact icon glyph. `ApplicationShell` keeps open/closed presentation state for application windows; it contains no ECS entity references or simulation data. `Agents` and `Reports` are standalone windows managed by the shell and are deliberately not `ApplicationId` values or entries in the Applications catalog.
 
 ### 2.6 Operative Intelligence Snapshots
 
@@ -394,6 +396,28 @@ view passed to ImGui retains neither `EntityStore` nor `Entity`. Debug agent
 detail additionally contains materialized/desired LOD tier, nullable pending
 demotion minute, and coarse-profile ID/fingerprint. Those fields deliberately
 do not appear in `PlayerIntelligenceAgentSnapshot`.
+
+`OperativeRota : IComponent` stores the player-authored seven-day work mask and
+work start/end minutes on each Operative. The mask uses bit zero for Monday.
+The decision system applies these per-agent hours to schedule facts, and the
+Tier 3 profile compiler includes the rota in its shared profile key. Invalid
+days and times are rejected; a rota that cannot fit its commute is rolled back.
+
+`OperativeAssignment : IComponent` holds the active task kind, target stable
+agent ID, start minute, and end minute. Only one assignment can be active per
+operative. `OperativeCommand` is the stable-ID UI request for rota edits,
+follow/talk assignments, or recall; `OperativeCommandQueue` processes it on the
+simulation side. The UI never receives the component or an ECS entity.
+
+`OperativeSnapshot`, `IntelligenceEvidence`, `IntelligenceAssessment`, and
+`OperativeManagementProjection` are immutable copies. An evidence row records
+the simulation minute, source operative, subject, observation kind, and detail.
+An assessment keeps its summary and confidence separate from its read-only
+evidence collection. `PlayerIntelligenceDB.OperativeManagement` carries the
+latest roster and reports to the standalone windows. These contracts contain
+no `Entity` references, and report evidence is produced only by task simulation.
+`data/intelligence-tasks.json` owns interview duration, maximum follow duration,
+observation cadence, success threshold, and confidence settings.
 
 ### 2.7 Agent Network Catalog
 

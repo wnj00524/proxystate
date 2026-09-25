@@ -330,3 +330,18 @@ Keep the UI aggregate-only: update `ResearchProviderProjection` when adding
 published fields, and do not pass individual response rows or household
 location state to application windows. The contact decision checks presence at
 the scheduled call time; sample selection must remain independent of occupancy.
+
+## Intelligence task settings
+
+`data/intelligence-tasks.json` tunes the shared follow and talk task behavior:
+
+- `talkDurationMinutes` is the simulated window for reaching and interviewing a target.
+- `maximumFollowMinutes` bounds the duration selected by the player.
+- `talkSuccessDifference` is the minimum charisma-minus-willpower score required for the subject to share views.
+- `followObservationIntervalMinutes` sets how often a co-located operative can record a sighting or observed interaction.
+- `followConfidenceBase` and `followConfidencePerSkillPoint` determine confidence in completed follow reports.
+- `talkSuccessConfidence` and `talkFailureConfidence` set confidence for completed and unsuccessful interviews.
+
+Confidence values must be between 0 and 1. Durations and the observation
+interval must be positive. A follow task can complete without a confirmed
+sighting if the operative cannot keep up with the selected target.

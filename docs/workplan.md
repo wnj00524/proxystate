@@ -33,6 +33,7 @@
 - [x] Draw a list of all Agents. When the user clicks an Agent, open their "Dossier".
 - [x] Crucial Security Check: The Dossier UI displays only traits unlocked in the union of the five Operatives' Knowledge Masks. It uses bitwise AND (&) logic; if the mask bit is 0, it renders "Trait: ???", and if 1, it renders the trait name.
 - [x] Add JSON-defined agent secret states with a default `None` state, debug-only inspection, and preservation across public action updates.
+- [x] [#156: Add operative management and intelligence reports](https://github.com/wnj00524/proxystate/issues/156) — standalone Agents and Reports windows, player-authored weekly rotas, simulation-time follow/talk assignments, sourced evidence, and separate assessments through immutable intelligence projections.
 
 ## Milestone 5: Agent Networks — Families and Companies
 
