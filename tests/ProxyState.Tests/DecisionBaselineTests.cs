@@ -236,6 +236,7 @@ public sealed class DecisionBaselineTests
             {
                 if (value.HasValue) values[_catalog.AgentAttributes.GetIndex(id)] = value.Value;
             }
+            Agent.GetComponent<AgentAttributes>().Values = values;
         }
 
         public Entity AddPeer(float affinity, int location = 3001)

@@ -123,7 +123,7 @@ public sealed class AgentDecisionSystem : QuerySystem<Identity, AgentAttributes,
             if (entity.TryGetComponent<PoliticalParticipation>(out var political) &&
                 political.TripKind != PoliticalTripKind.None) return;
             if (!_jobs.TryGetValue(identity.OccupationId, out var job)) return;
-            if (entity.TryGetComponent<OperativeWorkSchedule>(out var rota))
+            if (entity.TryGetComponent<OperativeRota>(out var rota))
                 job = job with
                 {
                     WorkDays = Enumerable.Range(1, SimulationDefaults.DaysPerWeek)

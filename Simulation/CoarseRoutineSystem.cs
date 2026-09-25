@@ -29,8 +29,8 @@ public sealed class CoarseRoutineSystem
         ref var identity = ref agent.GetComponent<Identity>();
         ref var psychology = ref agent.GetComponent<Psychology>();
         ref var commute = ref agent.GetComponent<AgentCommute>();
-        var rota = agent.TryGetComponent<OperativeWorkSchedule>(out var schedule)
-            ? schedule : (OperativeWorkSchedule?)null;
+        var rota = agent.TryGetComponent<OperativeRota>(out var schedule)
+            ? schedule : (OperativeRota?)null;
         var profile = _profiles.GetOrCreate(identity.OccupationId, psychology.TraitMask, commute.TravelMinutes, rota);
         ref var state = ref agent.GetComponent<AgentLodState>();
         state.CoarseProfileId = profile.Id;

@@ -122,7 +122,10 @@ public sealed class PoliticalResearchTests
 
         // Begin the first wave at its configured calling time, then advance past
         // the three-day field window so all scheduled attempts are processed.
-        clock.Advance(secondsPerMinute * catalog.Research.CallStartMinute);
+        var minutesUntilCallStart = (catalog.Research.CallStartMinute -
+            SimulationDefaults.StartingMinuteOfDay + SimulationDefaults.SimulationMinutesPerDay) %
+            SimulationDefaults.SimulationMinutesPerDay;
+        clock.Advance(secondsPerMinute * minutesUntilCallStart);
         systems.Update(default);
         research.Update();
         clock.Advance(secondsPerMinute * SimulationDefaults.SimulationMinutesPerDay * 3);
