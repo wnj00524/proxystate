@@ -26,6 +26,7 @@
 ## Milestone 4: The ImGui Intelligence Terminal
 - [x] Add opt-in `-debug` mode with a `Debug` window listing all agents and displaying selected agent details through ECS-isolated snapshots.
 - [x] Add a shared bottom bar showing the current in-game world day and time in every mode.
+- [x] Add four shared-bar simulation speed controls: default 10-minute day, 5-minute day, 1-minute day, and 30-second day.
 - [x] Add a Windows 3.1-style `Applications` launcher with `Dossiers` and optional `Debug Window` icons; double-clicking an icon opens its application window.
 - [x] Create an ImGui window titled "Surveillance Terminal" from the `Dossiers` launcher icon.
 - [x] Select five distinct random Operatives (or the full population when smaller) and mark them with an ECS tag.

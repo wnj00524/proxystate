@@ -109,7 +109,7 @@ public static class Program
                     debugProjection!.Select(debugWindow.SelectedAgentId);
                     applicationShell.DrawDebugWindow(debugProjection.View, debugWindow);
                 }
-                WorldTimeBar.Draw(worldTime);
+                WorldTimeBar.Draw(worldTime, clock.Speed, speed => clock.Speed = speed);
                 rlImGui.End();
 
                 Raylib.EndDrawing();
