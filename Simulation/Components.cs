@@ -69,6 +69,14 @@ public struct PoliticalAlignment : IComponent
     public byte FactionId;
 }
 
+/// <summary>Stable survey strata generated at spawn; never contains live location or response state.</summary>
+public struct SurveyDemographicProfile : IComponent
+{
+    public byte AgeBand;
+    public byte Gender;
+    public byte Education;
+}
+
 // Membership is separate from political alignment and remains available to
 // elections and faction strategy at every LOD tier.
 public struct FactionParticipation : IComponent

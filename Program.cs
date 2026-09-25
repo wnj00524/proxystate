@@ -43,7 +43,8 @@ public static class Program
 
         // A fresh seed gives each interactive run a new population. The spawner
         // accepts Random explicitly so tests and future replay tools can inject one.
-        spawner.Spawn(store, options.AgentCount, new Random());
+        var simulationSeed = new Random().Next();
+        spawner.Spawn(store, options.AgentCount, simulationSeed);
         var lodService = spawner.LodService ?? throw new InvalidOperationException("Agent LOD service was not initialized.");
         // Retain the immutable bootstrap indexes for indexed simulation systems
         // introduced by subsequent Milestone 17 slices.
@@ -51,7 +52,7 @@ public static class Program
 
         var intelligence = PlayerIntelligenceDB.Create(store, catalog);
         var investigationCommands = new InvestigationCommandQueue();
-        var interactionSystem = new InteractionSystem(store, catalog, new Random(), socialIndexes: agentSocialIndexes);
+        var interactionSystem = new InteractionSystem(store, catalog, SimulationRandomStreams.Interactions(simulationSeed), socialIndexes: agentSocialIndexes);
         var clock = new WorldClockSystem(store);
         var systems = new SystemRoot(store)
         {
@@ -65,6 +66,7 @@ public static class Program
         };
         var politicalSystem = new PoliticalSystem(store, catalog, clock.ClockEntity, agentSocialIndexes, lodService);
         var factionSystem = new PoliticalFactionSystem(store, catalog, agentSocialIndexes, lodService);
+        var researchSystem = new PoliticalResearchSystem(store, catalog, clock.ClockEntity, simulationSeed);
 
         Raylib.InitWindow(1280, 720, "Proxy State - Applications");
         Raylib.SetTargetFPS(60);
@@ -89,6 +91,7 @@ public static class Program
                 systems.Update(default);
                 politicalSystem.Update();
                 factionSystem.Update(clock.ClockEntity.GetComponent<WorldTime>().DayIndex + 1);
+                researchSystem.Update();
                 foreach (var discovery in interactionSystem.DrainOperativeDiscoveries()) intelligence.Apply(discovery);
                 var worldTime = WorldTimeSnapshot.From(clock.ClockEntity.GetComponent<WorldTime>());
 
@@ -99,6 +102,7 @@ public static class Program
                 applicationShell.DrawLauncher(debugMode);
                 applicationShell.DrawDossiersWindow(intelligence, catalog.Traits, dossierWindow,
                     investigationCommands.Enqueue);
+                applicationShell.DrawResearchWindows(researchSystem.GetProviderProjections());
                 if (debugWindow is not null && applicationShell.DebugWindowOpen)
                 {
                     // Only a changed selection crosses the on-demand copy boundary.

@@ -316,3 +316,17 @@ automated test suite before sharing a change:
 ```text
 dotnet test ProxyState.sln
 ```
+# Political research providers
+
+Edit `data/research.json` to tune poll cadence, calling hours, demographic
+targets, response rates, and provider methods. Provider IDs must be unique;
+the method is `stratified-probability` or `demographic-quota`, with unique
+sampling strata drawn from `ageBand`, `gender`, `education`, `district`, and
+`sector`. Provider attempt counts and maximum calibration weights must be
+positive. The candidate office must reference an elected public job. Category
+population shares for age, gender, and education must each total 1.0.
+
+Keep the UI aggregate-only: update `ResearchProviderProjection` when adding
+published fields, and do not pass individual response rows or household
+location state to application windows. The contact decision checks presence at
+the scheduled call time; sample selection must remain independent of occupancy.

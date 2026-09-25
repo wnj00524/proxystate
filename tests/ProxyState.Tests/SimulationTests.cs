@@ -79,12 +79,13 @@ public sealed class SimulationTests
         var normalApplications = ApplicationCatalog.GetAvailable(debugMode: false);
         var debugApplications = ApplicationCatalog.GetAvailable(debugMode: true);
 
-        Assert.Equal(new[] { ApplicationId.Dossiers }, normalApplications.Select(application => application.Id));
+        Assert.Equal(new[] { ApplicationId.Dossiers, ApplicationId.NorthstarOpinion, ApplicationId.TownlineResearch },
+            normalApplications.Select(application => application.Id));
         Assert.Equal(
-            new[] { ApplicationId.Dossiers, ApplicationId.DebugWindow },
+            new[] { ApplicationId.Dossiers, ApplicationId.NorthstarOpinion, ApplicationId.TownlineResearch, ApplicationId.DebugWindow },
             debugApplications.Select(application => application.Id));
         Assert.Equal("Surveillance Terminal", ApplicationShell.DossiersWindowTitle);
-        Assert.Equal("Debug Window", debugApplications[1].Label);
+        Assert.Equal("Debug Window", debugApplications[3].Label);
         Assert.Equal("Debug Window", ApplicationShell.DebugWindowTitle);
     }
 
@@ -1124,7 +1125,7 @@ public sealed class SimulationTests
         public static void CopyCatalogFiles(string directory)
         {
             var source = System.IO.Path.Combine(AppContext.BaseDirectory, "data");
-            foreach (var fileName in new[] { "actions.json", "secret-states.json", "factions.json", "traits.json", "agent-schema.json", "jobs.json", "world.json", "networks.json", "lod.json", "politics.json" })
+            foreach (var fileName in new[] { "actions.json", "secret-states.json", "factions.json", "traits.json", "agent-schema.json", "jobs.json", "world.json", "networks.json", "lod.json", "politics.json", "research.json" })
             {
                 File.Copy(System.IO.Path.Combine(source, fileName), System.IO.Path.Combine(directory, fileName));
             }

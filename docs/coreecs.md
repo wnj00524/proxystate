@@ -489,3 +489,19 @@ elected civic power through data-authored strategy.
   faction snapshots, officeholders, tallies, winners, and appointments as the
   Markdown report. This path is diagnostic Ground Truth output; it does not
   change the interactive intelligence boundary because no player UI is active.
+
+### 4.25 In-World Political Research
+
+`PoliticalResearchSystem` starts weekly provider waves, selects unique agents
+from stable demographic/district/sector strata, and spreads fixed call attempts
+over the configured three-day call window. Sample selection is independent of
+current household occupancy. At a scheduled call, the service checks whether
+the selected agent is home and willing to answer. Public results distinguish
+completed interviews from combined nonresponse only. Each wave is published
+once all calls are attempted. Calibrated estimates include Kish effective
+sample size and Wilson 95% intervals.
+
+The Northstar Opinion and Townline Research applications receive immutable
+`ResearchProviderProjection` copies. They display aggregate results and trend
+lines without querying ECS or exposing individual answers, sample identities,
+or occupancy state. The service runs in both interactive and headless loops.

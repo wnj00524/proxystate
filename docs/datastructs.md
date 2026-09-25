@@ -555,3 +555,27 @@ The event stream includes political choices and travel, not ordinary movement
 or day-to-day work activity. Console progress is emitted through an optional
 runner callback and reports startup parameters, day boundaries, elapsed time,
 and a remaining-time estimate calculated from completed days.
+
+### 2.15 Political Research Providers
+
+`SurveyDemographicProfile` stores a stable, content-sampled age band, gender,
+and education category on each agent. The dedicated survey random stream keeps
+these values repeatable for a run seed without perturbing job assignment or
+traits. Research sampling uses those profiles, home district, and job sector;
+it never uses present or future home status to choose a sample.
+
+`data/research.json` defines weekly cadence, a three-day telephone fieldwork
+window, call hours, response and undecided rates, demographic population
+targets, and provider methods. Northstar Opinion uses a stratified probability
+sample and likely-voter reporting; Townline Research uses demographic quotas
+and all-respondent reporting. Both attempt 200 unique agents per wave. At call
+time, an interview can complete only if the selected agent is home and opts to
+respond. Providers receive either a response or one combined nonresponse
+outcome; away status and refusals are never exposed separately.
+
+`OpinionPollSnapshot` is an aggregate containing call and response totals,
+effective sample size, raw and calibrated party/candidate percentages, and 95%
+Wilson intervals. Candidate estimates are present only when mayoral nominees
+exist. `ResearchProviderProjection` copies the latest snapshot and history for
+presentation. `PoliticalResearchWindow` accepts only this aggregate and has no
+ECS access; each provider application opens and closes independently.
