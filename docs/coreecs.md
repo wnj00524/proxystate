@@ -359,6 +359,9 @@ leaking ECS entities into ordinary presentation code.
   winners produce invitations; participant eligibility and utility are evaluated
   from separately compiled content with the invitee as agent and initiator as
   target.
+* Invitation targets needing promotion are copied to a stable-ID snapshot before
+  `AgentLodService` changes their components or LOD tags. This keeps structural
+  ECS mutations outside the live `IntentionState` query iteration.
 * Invitations are sorted by participant utility, initiator utility, action hash,
   initiator ID, and target ID. Greedy disjoint acceptance makes pairing
   deterministic and prevents double booking. Rejected initiators receive the
