@@ -51,11 +51,21 @@ public sealed class CoordinationSystem : QuerySystem<CoordinationState>
     {
         if (_lodService is null) return;
         var byId = _store.Query<Identity>().Entities.ToDictionary(entity => entity.Id);
-        foreach (var initiator in _store.Query<IntentionState>().Entities.Where(entity => entity.Tags.Has<Tier1LodTag>()))
+        // Promotion adds and removes components, so gather all targets before
+        // changing any entity matched by the live ECS query.
+        var targetsToPromote = _store.Query<IntentionState>().Entities
+            .Where(entity => entity.Tags.Has<Tier1LodTag>())
+            .Select(entity => entity.GetComponent<IntentionState>())
+            .Where(intention => _intents.TryGetValue(intention.ActionHash, out var intent) &&
+                intent.Participation is not null && byId.TryGetValue(intention.TargetEntityId, out var target) &&
+                target.Tags.Has<Tier3LodTag>())
+            .Select(intention => intention.TargetEntityId)
+            .Distinct()
+            .ToArray();
+
+        foreach (var targetId in targetsToPromote)
         {
-            var intention = initiator.GetComponent<IntentionState>();
-            if (_intents.TryGetValue(intention.ActionHash, out var intent) && intent.Participation is not null &&
-                byId.TryGetValue(intention.TargetEntityId, out var target) && target.Tags.Has<Tier3LodTag>())
+            if (byId.TryGetValue(targetId, out var target) && target.Tags.Has<Tier3LodTag>())
                 _lodService.AcquireInteractionPin(target);
         }
     }
