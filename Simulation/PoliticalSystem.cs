@@ -30,10 +30,19 @@ public sealed class PoliticalSystem
     private readonly List<PoliticalDiagnosticEvent> _events = [];
     private readonly List<ElectionDiagnosticResult> _electionResults = [];
 
+    private readonly ArchetypeQuery<Identity, PoliticalAlignment, AgentAttributes, AgentLocation, PoliticalParticipation> _voterCandidateQuery;
+    private readonly ArchetypeQuery<Identity, PoliticalAlignment, AgentAttributes, PoliticalParticipation> _electionAgentQuery;
+    private readonly ArchetypeQuery<Identity, PoliticalParticipation> _participationQuery;
+    private readonly ArchetypeQuery<Identity> _identityQuery;
+
     public PoliticalSystem(EntityStore store, ContentCatalog catalog, Entity clock,
         AgentSocialIndexes socialIndexes, AgentLodService? lodService = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
+        _voterCandidateQuery = _store.Query<Identity, PoliticalAlignment, AgentAttributes, AgentLocation, PoliticalParticipation>();
+        _electionAgentQuery = _store.Query<Identity, PoliticalAlignment, AgentAttributes, PoliticalParticipation>();
+        _participationQuery = _store.Query<Identity, PoliticalParticipation>();
+        _identityQuery = _store.Query<Identity>();
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         _world = catalog.World;
         _clock = clock;
@@ -88,8 +97,7 @@ public sealed class PoliticalSystem
 
     private void ConsiderCandidates(long minute, int electionId)
     {
-        foreach (var agent in _store.Query<Identity, PoliticalAlignment, AgentAttributes,
-                     AgentLocation, PoliticalParticipation>().Entities.OrderBy(entity => entity.Id))
+        foreach (var agent in _voterCandidateQuery.Entities.OrderBy(entity => entity.Id))
         {
             ref var participation = ref agent.GetComponent<PoliticalParticipation>();
             if (participation.CandidateElectionId == electionId || participation.TripKind != PoliticalTripKind.None)
@@ -132,8 +140,7 @@ public sealed class PoliticalSystem
         var dayStart = minute - minute % SimulationDefaults.SimulationMinutesPerDay;
         var pollOpen = dayStart + _catalog.Politics.PollOpeningMinute;
         var pollClose = dayStart + _catalog.Politics.PollClosingMinute;
-        foreach (var agent in _store.Query<Identity, PoliticalAlignment, AgentAttributes,
-                     AgentLocation, PoliticalParticipation>().Entities.OrderBy(entity => entity.Id))
+        foreach (var agent in _voterCandidateQuery.Entities.OrderBy(entity => entity.Id))
         {
             ref var participation = ref agent.GetComponent<PoliticalParticipation>();
             if (participation.VotingDecisionElectionId == electionId ||
@@ -266,13 +273,11 @@ public sealed class PoliticalSystem
     {
         RestoreFormerOfficeholders();
         var winners = new Dictionary<int, Entity>();
-        var candidates = _store.Query<Identity, PoliticalAlignment, AgentAttributes,
-                PoliticalParticipation>().Entities
+        var candidates = _electionAgentQuery.Entities
             .Where(agent => agent.GetComponent<PoliticalParticipation>().CandidateElectionId == electionId &&
                 agent.GetComponent<PoliticalParticipation>().CandidateJobHash != 0)
             .OrderBy(agent => agent.Id).ToArray();
-        var voters = _store.Query<Identity, PoliticalAlignment, AgentAttributes,
-                PoliticalParticipation>().Entities
+        var voters = _electionAgentQuery.Entities
             .Where(agent => agent.GetComponent<PoliticalParticipation>().VotedElectionId == electionId)
             .OrderBy(agent => agent.Id).ToArray();
         LastElectionCandidateCount = candidates.Length;
@@ -318,12 +323,20 @@ public sealed class PoliticalSystem
                 detail: $"votes={tallies[winner.Id]};candidates={contenders.Length}");
         }
 
+        var currentOfficeholders = _identityQuery.Entities
+            .Where(agent => _politicalJobHashes.Contains(agent.GetComponent<Identity>().OccupationId))
+            .GroupBy(agent => agent.GetComponent<Identity>().OccupationId)
+            .ToDictionary(g => g.Key, g => g.First());
+
         foreach (var office in _catalog.Jobs.Where(job => job.SelectionMethod == "appointed").OrderBy(job => job.Hash))
         {
             if (office.AppointedByJobId is null || !_jobsById.TryGetValue(office.AppointedByJobId, out var appointingOffice))
                 continue;
+
             var appointingOfficial = winners.TryGetValue(appointingOffice.Hash, out var newWinner)
-                ? newWinner : FindOfficeholder(appointingOffice.Hash);
+                ? newWinner
+                : (currentOfficeholders.TryGetValue(appointingOffice.Hash, out var current) ? current : default);
+
             if (appointingOfficial.IsNull) continue;
             var applicants = candidates.Where(agent =>
                 agent.GetComponent<PoliticalParticipation>().CandidateJobHash == office.Hash).ToArray();
@@ -350,7 +363,7 @@ public sealed class PoliticalSystem
 
     private void RestoreFormerOfficeholders()
     {
-        foreach (var agent in _store.Query<Identity, PoliticalParticipation>().Entities)
+        foreach (var agent in _participationQuery.Entities)
         {
             ref var identity = ref agent.GetComponent<Identity>();
             ref var participation = ref agent.GetComponent<PoliticalParticipation>();
@@ -395,9 +408,6 @@ public sealed class PoliticalSystem
         }
         _lodService?.RefreshCoarseProfile(agent);
     }
-
-    private Entity FindOfficeholder(int officeHash) => _store.Query<Identity>().Entities
-        .FirstOrDefault(agent => agent.GetComponent<Identity>().OccupationId == officeHash);
 
     private static bool IsFactionMember(Entity agent, byte factionId) =>
         agent.TryGetComponent<FactionParticipation>(out var membership) &&
