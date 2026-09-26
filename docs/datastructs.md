@@ -365,7 +365,10 @@ seeded runs reproduce the same team membership.
 
 `PlayerIntelligenceAgentSnapshot` contains an agent ID, name ID, Operative
 marker, intelligence role, team-known trait mask, and sanitized investigation
-flag. It intentionally omits the ground-truth secret state and all LOD details.
+flag, plus nullable residence, workplace, and occupation facts learned by the
+team. Those routine fields remain unknown until an operative reports a sourced
+observation. It intentionally omits the ground-truth secret state and all LOD
+details.
 `PlayerIntelligenceDB` owns a sorted snapshot array exposed through a read-only
 view plus the selected Operative IDs. Its one-time creation boundary scans
 outgoing edges whose source has `OperativeTag` and combines their known trait
@@ -412,9 +415,19 @@ simulation side. The UI never receives the component or an ECS entity.
 
 `OperativeSnapshot`, `IntelligenceEvidence`, `IntelligenceAssessment`, and
 `OperativeManagementProjection` are immutable copies. An evidence row records
-the simulation minute, source operative, subject, observation kind, and detail.
+the simulation minute, source operative, subject, observation kind, detail, and
+an optional copied value for a newly identified routine fact. The projection
+carries new routine discoveries separately so `PlayerIntelligenceDB` can update
+the matching dossier without rescanning reports or querying ECS.
 An assessment keeps its summary and confidence separate from its read-only
-evidence collection. `PlayerIntelligenceDB.OperativeManagement` carries the
+evidence collection. Follow evidence may include `residence`, `workplace`, and
+`occupation` discoveries when the operative and subject are co-located at the
+subject's assigned home or workplace. Each discovery carries the observation
+minute and operative/subject IDs, and repeated observations of the same fact
+within one assignment are deduplicated. Missing home/work assignments or an
+unknown occupation produce no corresponding discovery. The projection carries
+only copied evidence values; ImGui never reads the target's location or identity
+components. `PlayerIntelligenceDB.OperativeManagement` carries the
 latest roster and reports to the standalone windows. These contracts contain
 no `Entity` references, and report evidence is produced only by task simulation.
 `SimulationTimeFormatter` converts elapsed report and evidence minutes to a
