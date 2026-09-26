@@ -19,6 +19,10 @@ public sealed record PlayerIntelligenceAgentSnapshot(
     bool IsUnderInvestigation)
 {
     public string DisplayName => $"Agent {EntityId} (Name ID {NameId})";
+    /// <summary>Routine facts learned by the player team through sourced observations.</summary>
+    public string? KnownResidence { get; init; }
+    public string? KnownWorkplace { get; init; }
+    public string? KnownOccupation { get; init; }
 }
 
 /// <summary>
@@ -53,8 +57,31 @@ public sealed class PlayerIntelligenceDB
     /// <summary>Sanitized operative schedules, assignments, and task reports.</summary>
     public OperativeManagementProjection? OperativeManagement { get; private set; }
 
-    public void Apply(OperativeManagementProjection projection) =>
-        OperativeManagement = projection ?? throw new ArgumentNullException(nameof(projection));
+    public void Apply(OperativeManagementProjection projection)
+    {
+        ArgumentNullException.ThrowIfNull(projection);
+        foreach (var discovery in projection.NewRoutineDiscoveries)
+        {
+            if (discovery.DiscoveredValue is null) continue;
+            var index = FindIndex(discovery.SubjectAgentId);
+            if (index < 0) continue;
+
+            var previous = _agents[index];
+            var updated = discovery.Kind switch
+            {
+                "residence" => previous with { KnownResidence = discovery.DiscoveredValue },
+                "workplace" => previous with { KnownWorkplace = discovery.DiscoveredValue },
+                "occupation" => previous with { KnownOccupation = discovery.DiscoveredValue },
+                _ => previous
+            };
+            if (updated != previous)
+            {
+                _agents[index] = updated;
+                Diagnostics.IncrementalUpdates++;
+            }
+        }
+        OperativeManagement = projection;
+    }
 
     public PlayerIntelligenceProjectionDiagnostics Diagnostics { get; }
 
@@ -375,6 +402,12 @@ public sealed class DossierWindow
                 commandSink(DossierInvestigationActions.Toggle(agent));
         }
         ImGui.Text($"Under investigation: {(agent.IsUnderInvestigation ? "Yes" : "No")}");
+
+        ImGui.Separator();
+        ImGui.Text("Known routine");
+        ImGui.BulletText($"Residence: {agent.KnownResidence ?? "Unknown"}");
+        ImGui.BulletText($"Workplace: {agent.KnownWorkplace ?? "Unknown"}");
+        ImGui.BulletText($"Occupation: {agent.KnownOccupation ?? "Unknown"}");
 
         ImGui.Separator();
         ImGui.Text("Known traits");

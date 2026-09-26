@@ -64,7 +64,8 @@ public readonly record struct OperativeSnapshot(
     int TargetAgentId, long TaskEndMinute);
 
 public readonly record struct IntelligenceEvidence(
-    long Minute, int SourceOperativeId, int SubjectAgentId, string Kind, string Detail);
+    long Minute, int SourceOperativeId, int SubjectAgentId, string Kind, string Detail,
+    string? DiscoveredValue = null);
 
 public sealed class IntelligenceAssessment
 {
@@ -101,14 +102,19 @@ public static class SimulationTimeFormatter
 public sealed class OperativeManagementProjection
 {
     public OperativeManagementProjection(IEnumerable<OperativeSnapshot> operatives,
-        IEnumerable<IntelligenceAssessment> reports)
+        IEnumerable<IntelligenceAssessment> reports,
+        IEnumerable<IntelligenceEvidence>? newRoutineDiscoveries = null)
     {
         Operatives = Array.AsReadOnly(operatives.ToArray());
         Reports = Array.AsReadOnly(reports.ToArray());
+        NewRoutineDiscoveries = Array.AsReadOnly(
+            (newRoutineDiscoveries ?? Enumerable.Empty<IntelligenceEvidence>()).ToArray());
     }
 
     public IReadOnlyList<OperativeSnapshot> Operatives { get; }
     public IReadOnlyList<IntelligenceAssessment> Reports { get; }
+    /// <summary>New copied facts for immediate application to player dossiers.</summary>
+    public IReadOnlyList<IntelligenceEvidence> NewRoutineDiscoveries { get; }
 }
 
 public sealed record IntelligenceTaskSettings(
@@ -144,6 +150,7 @@ public sealed class OperativeManagementSystem
     private readonly Dictionary<int, Entity> _agents;
     private readonly List<IntelligenceAssessment> _reports = [];
     private readonly Dictionary<int, List<IntelligenceEvidence>> _taskEvidence = [];
+    private readonly List<IntelligenceEvidence> _pendingRoutineDiscoveries = [];
     private readonly Dictionary<int, long> _lastObservationMinute = [];
     private long _lastUpdatedMinute = -1;
 
@@ -182,8 +189,10 @@ public sealed class OperativeManagementSystem
                 identity.IntelligenceRole.ToString(), job, rota.WorkDaysMask, rota.WorkStartMinute,
                 rota.WorkEndMinute, task.Kind, task.TargetAgentId, task.EndsAtMinute);
         }).ToArray();
+        var discoveries = _pendingRoutineDiscoveries.ToArray();
+        _pendingRoutineDiscoveries.Clear();
         return new OperativeManagementProjection(roster,
-            _reports.OrderByDescending(report => report.Minute));
+            _reports.OrderByDescending(report => report.Minute), discoveries);
     }
 
     public bool SetRota(OperativeRotaCommand command, long currentMinute)
@@ -293,6 +302,7 @@ public sealed class OperativeManagementSystem
                         var location = _catalog.World.Locations.FirstOrDefault(item => item.Hash == locationId)?.Name ?? "unknown location";
                         evidence.Add(new IntelligenceEvidence(minute, operative.Id, target.Id, "sighting",
                             $"Seen at {location}."));
+                        RecordRoutineDiscoveries(target, locationId, minute, operative.Id, evidence);
                         if (target.TryGetComponent<CoordinationState>(out var interaction) && interaction.Active &&
                             _agents.ContainsKey(interaction.PartnerEntityId))
                             evidence.Add(new IntelligenceEvidence(minute, operative.Id, target.Id, "interaction",
@@ -410,6 +420,49 @@ public sealed class OperativeManagementSystem
         IReadOnlyList<IntelligenceEvidence> evidence) =>
         _reports.Add(new IntelligenceAssessment(minute, operative.Id, targetId, summary,
             Math.Clamp(confidence, 0f, 1f), evidence));
+
+    /// <summary>
+    /// Converts an actual co-located sighting into routine intelligence. The
+    /// simulation may compare the observed location with the target's assigned
+    /// home and work nodes; only the resulting sourced evidence leaves ECS.
+    /// </summary>
+    private void RecordRoutineDiscoveries(Entity target, int observedLocationId, long minute,
+        int operativeId, List<IntelligenceEvidence> evidence)
+    {
+        var location = target.GetComponent<AgentLocation>();
+        if (location.HomeLocationId != 0 && observedLocationId == location.HomeLocationId)
+        {
+            var homeName = LocationName(location.HomeLocationId);
+            AddRoutineEvidence(evidence, new IntelligenceEvidence(minute, operativeId, target.Id,
+                "residence", $"Identified residence: {homeName}.", homeName));
+        }
+
+        if (location.WorkLocationId == 0 || observedLocationId != location.WorkLocationId) return;
+
+        var workplaceName = LocationName(location.WorkLocationId);
+        AddRoutineEvidence(evidence, new IntelligenceEvidence(minute, operativeId, target.Id,
+            "workplace", $"Identified workplace: {workplaceName}.", workplaceName));
+
+        var occupationId = target.GetComponent<Identity>().OccupationId;
+        var occupation = _catalog.Jobs.FirstOrDefault(job => job.Hash == occupationId);
+        if (occupation is not null)
+            AddRoutineEvidence(evidence, new IntelligenceEvidence(minute, operativeId, target.Id,
+                "occupation", $"Identified occupation: {occupation.Name}.", occupation.Name));
+    }
+
+    private string LocationName(int locationId) =>
+        _catalog.World.Locations.FirstOrDefault(item => item.Hash == locationId)?.Name ?? "unknown location";
+
+    private void AddRoutineEvidence(List<IntelligenceEvidence> evidence, IntelligenceEvidence discovery)
+    {
+        // A target can be seen at home or work many times during one follow;
+        // retain one copy of each discovered fact in that assignment's report.
+        if (!evidence.Any(item => item.Kind == discovery.Kind && item.Detail == discovery.Detail))
+        {
+            evidence.Add(discovery);
+            _pendingRoutineDiscoveries.Add(discovery);
+        }
+    }
 
     private bool TryOperative(int id, out Entity entity) =>
         _agents.TryGetValue(id, out entity) && !entity.IsNull && entity.Tags.Has<OperativeTag>();

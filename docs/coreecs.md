@@ -524,7 +524,13 @@ An active task pauses the operative's normal decision, movement, coordination,
 and activity effects. Its travel follows the selected target through the
 world's shortest-time routes. Follow assignments capture periodic sightings
 and observed coordination partners only when the operative and target share a
-location. Talk assignments end after the configured interview window; access
+location. A sighting at the target's assigned home records a sourced residence
+discovery. A sighting at the assigned workplace records the workplace and, when
+the occupation resolves to a configured job, its occupation. Repeated sightings
+in one assignment do not duplicate the same discovery. New routine facts are
+copied through the management projection into the target's dossier as soon as
+they are identified, and are retained as sourced report evidence when the task
+ends. Talk assignments end after the configured interview window; access
 and operative charisma versus target willpower determine whether views are
 recorded. Successful and failed outcomes both produce an assessment.
 
