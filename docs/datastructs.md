@@ -23,7 +23,8 @@ public enum AgentInterestReason : byte {
     Operative = 1,
     Investigation = 2,
     RelatedPointOfInterest = 4,
-    ActiveInteraction = 8
+    ActiveInteraction = 8,
+    OperativeTaskTarget = 16
 }
 
 public struct AgentLodState : IComponent {
@@ -416,6 +417,8 @@ An assessment keeps its summary and confidence separate from its read-only
 evidence collection. `PlayerIntelligenceDB.OperativeManagement` carries the
 latest roster and reports to the standalone windows. These contracts contain
 no `Entity` references, and report evidence is produced only by task simulation.
+`SimulationTimeFormatter` converts elapsed report and evidence minutes to a
+one-based world day and a zero-padded 24-hour clock time for display.
 `data/intelligence-tasks.json` owns interview duration, maximum follow duration,
 observation cadence, success threshold, and confidence settings.
 

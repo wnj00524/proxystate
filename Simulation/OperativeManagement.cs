@@ -87,6 +87,17 @@ public sealed class IntelligenceAssessment
     public IReadOnlyList<IntelligenceEvidence> Evidence { get; }
 }
 
+/// <summary>Formats elapsed simulation minutes as the in-world day and clock time.</summary>
+public static class SimulationTimeFormatter
+{
+    public static string Format(long minute)
+    {
+        var day = minute / SimulationDefaults.SimulationMinutesPerDay + 1;
+        var minuteOfDay = (int)(minute % SimulationDefaults.SimulationMinutesPerDay);
+        return $"Day {day} · {minuteOfDay / 60:D2}:{minuteOfDay % 60:D2}";
+    }
+}
+
 public sealed class OperativeManagementProjection
 {
     public OperativeManagementProjection(IEnumerable<OperativeSnapshot> operatives,
@@ -213,17 +224,16 @@ public sealed class OperativeManagementSystem
 
         var ends = command.Kind == OperativeTaskKind.Follow
             ? currentMinute + command.DurationMinutes : currentMinute + _settings.TalkDurationMinutes;
+        if (!BeginTravel(operative, target.GetComponent<AgentLocation>().CurrentLocationId))
+            return false;
+        // Promotion catches up the target before any follow/talk code reads its detailed state.
+        _lod.AcquireOperativeTaskTarget(target.Id);
         ref var active = ref operative.GetComponent<OperativeAssignment>();
         active = new OperativeAssignment
         {
             Kind = command.Kind, TargetAgentId = command.TargetAgentId,
             StartedAtMinute = currentMinute, EndsAtMinute = ends
         };
-        if (!BeginTravel(operative, target.GetComponent<AgentLocation>().CurrentLocationId))
-        {
-            active = default;
-            return false;
-        }
         _taskEvidence[operative.Id] = [];
         _lastObservationMinute[operative.Id] = currentMinute - _settings.FollowObservationIntervalMinutes;
         return true;
@@ -382,8 +392,10 @@ public sealed class OperativeManagementSystem
         }
     }
 
-    private static void ClearAssignment(Entity operative, ref OperativeAssignment assignment)
+    private void ClearAssignment(Entity operative, ref OperativeAssignment assignment)
     {
+        if (assignment.Kind is OperativeTaskKind.Follow or OperativeTaskKind.Talk)
+            _lod.ReleaseOperativeTaskTarget(assignment.TargetAgentId);
         assignment = default;
         ref var travel = ref operative.GetComponent<AgentTravel>();
         travel.Mode = AgentTravelMode.Stationary;

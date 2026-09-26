@@ -133,7 +133,7 @@ public sealed class ReportsWindow
         for (var index = 0; index < management.Reports.Count; index++)
         {
             var report = management.Reports[index];
-            if (ImGui.Selectable($"Day {report.Minute / SimulationDefaults.SimulationMinutesPerDay + 1} · Agent {report.SubjectAgentId}", index == _selectedIndex))
+            if (ImGui.Selectable($"{SimulationTimeFormatter.Format(report.Minute)} · Agent {report.SubjectAgentId}", index == _selectedIndex))
                 _selectedIndex = index;
         }
         ImGui.EndChild();
@@ -146,7 +146,7 @@ public sealed class ReportsWindow
             var report = management.Reports[_selectedIndex];
             ImGui.Text($"Subject: Agent {report.SubjectAgentId}");
             ImGui.Text($"Source: Operative {report.SourceOperativeId}");
-            ImGui.Text($"Received at minute {report.Minute}");
+            ImGui.Text($"Report time: {SimulationTimeFormatter.Format(report.Minute)}");
             ImGui.Separator();
             ImGui.Text("Assessment");
             ImGui.TextWrapped(report.Summary);
@@ -155,7 +155,7 @@ public sealed class ReportsWindow
             ImGui.Text("Evidence");
             foreach (var evidence in report.Evidence)
             {
-                ImGui.BulletText($"Minute {evidence.Minute}: {evidence.Kind} — {evidence.Detail}");
+                ImGui.BulletText($"{SimulationTimeFormatter.Format(evidence.Minute)}: {evidence.Kind} — {evidence.Detail}");
                 ImGui.TextDisabled($"Reported by operative {evidence.SourceOperativeId}");
             }
             if (report.Evidence.Count == 0) ImGui.TextDisabled("No observations were confirmed.");

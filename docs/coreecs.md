@@ -528,9 +528,16 @@ location. Talk assignments end after the configured interview window; access
 and operative charisma versus target willpower determine whether views are
 recorded. Successful and failed outcomes both produce an assessment.
 
+While one or more active follow/talk assignments target an agent, the LOD
+service reference-counts that player-task interest and promotes the target to
+Tier 1 immediately. Clearing or completing each assignment releases its
+reference; normal LOD classification resumes after the last assignment ends.
+
 Task behavior is configured in `data/intelligence-tasks.json`. Each report
 separates a short assessment and confidence from immutable evidence rows with
 simulation time, source operative, subject, observation kind, and detail.
+The Reports window formats report and evidence minutes as an in-world day and
+24-hour clock time, using the simulation's 1,440-minute day.
 `PlayerIntelligenceDB` receives the copied `OperativeManagementProjection`;
 the standalone `Agents` and `Reports` windows render only that projection and
 the existing player-intelligence identity list. They do not query Ground Truth

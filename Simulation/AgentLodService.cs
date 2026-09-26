@@ -17,6 +17,7 @@ public sealed class AgentLodService : IDisposable
     private readonly Dictionary<int, int[]> _poiNeighbours = new();
     private readonly List<InvestigationChangedEvent> _investigationEvents = [];
     private readonly Dictionary<int, int> _interactionPins = [];
+    private readonly Dictionary<int, int> _operativeTaskTargetReferences = [];
     private ContentCatalog? _catalog;
     private CoarseRoutineSystem? _coarse;
     private bool _initialized;
@@ -110,6 +111,39 @@ public sealed class AgentLodService : IDisposable
                 DecisionWakeReason.Investigation);
         _investigationEvents.Add(new InvestigationChangedEvent(agentId, enabled));
         return true;
+    }
+
+    /// <summary>Keeps an agent targeted by at least one operative task at Tier 1.</summary>
+    public void AcquireOperativeTaskTarget(int agentId)
+    {
+        RequireInitialized();
+        if (!_agents.TryGetValue(agentId, out var agent) || !IsLiveAgent(agent))
+            throw new ArgumentOutOfRangeException(nameof(agentId), agentId, "The agent ID does not identify a live agent.");
+
+        var references = _operativeTaskTargetReferences.GetValueOrDefault(agentId);
+        _operativeTaskTargetReferences[agentId] = references + 1;
+        if (references != 0) return;
+
+        ref var state = ref agent.GetComponent<AgentLodState>();
+        state.InterestReasons |= AgentInterestReason.OperativeTaskTarget;
+        ApplyClassification(agent);
+    }
+
+    /// <summary>Removes one task target reference and resumes ordinary LOD classification at zero.</summary>
+    public void ReleaseOperativeTaskTarget(int agentId)
+    {
+        if (!_operativeTaskTargetReferences.TryGetValue(agentId, out var references)) return;
+        if (references > 1)
+        {
+            _operativeTaskTargetReferences[agentId] = references - 1;
+            return;
+        }
+
+        _operativeTaskTargetReferences.Remove(agentId);
+        if (!_agents.TryGetValue(agentId, out var agent) || !IsLiveAgent(agent)) return;
+        ref var state = ref agent.GetComponent<AgentLodState>();
+        state.InterestReasons &= ~AgentInterestReason.OperativeTaskTarget;
+        ApplyClassification(agent);
     }
 
     /// <summary>Returns immutable value copies and clears the pending event buffer.</summary>
@@ -317,7 +351,8 @@ public sealed class AgentLodService : IDisposable
     private void ApplyClassification(Entity agent)
     {
         ref var state = ref agent.GetComponent<AgentLodState>();
-        var isPoi = (state.InterestReasons & (AgentInterestReason.Operative | AgentInterestReason.Investigation)) != 0;
+        var isPoi = (state.InterestReasons & (AgentInterestReason.Operative | AgentInterestReason.Investigation |
+            AgentInterestReason.OperativeTaskTarget)) != 0;
         SetDesiredTier(agent, isPoi ? AgentLodTier.Tier1
             : state.DirectPoiReferenceCount > 0 ? AgentLodTier.Tier2 : AgentLodTier.Tier3);
     }
@@ -329,6 +364,7 @@ public sealed class AgentLodService : IDisposable
         if (_pointsOfInterest.Contains(agent.Id)) RemovePointOfInterest(agent);
         _agents.Remove(agent.Id);
         _interactionPins.Remove(agent.Id);
+        _operativeTaskTargetReferences.Remove(agent.Id);
         if ((agent.GetComponent<AgentLodState>().InterestReasons & AgentInterestReason.Investigation) != 0)
             _investigationEvents.Add(new InvestigationChangedEvent(agent.Id, false));
     }
