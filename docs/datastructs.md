@@ -407,11 +407,13 @@ The decision system applies these per-agent hours to schedule facts, and the
 Tier 3 profile compiler includes the rota in its shared profile key. Invalid
 days and times are rejected; a rota that cannot fit its commute is rolled back.
 
-`OperativeAssignment : IComponent` holds the active task kind, target stable
-agent ID, start minute, and end minute. Only one assignment can be active per
-operative. `OperativeCommand` is the stable-ID UI request for rota edits,
-follow/talk assignments, or recall; `OperativeCommandQueue` processes it on the
-simulation side. The UI never receives the component or an ECS entity.
+`OperativeAssignment : IComponent` holds the task kind, target stable agent ID,
+scheduled start minute, and end minute. A future start keeps the assignment
+pending; travel, duration, and observations begin at the selected minute. Only
+one assignment can be active or pending per operative. `OperativeCommand` is the
+stable-ID UI request for rota edits, follow/talk assignments, or recall;
+`OperativeCommandQueue` processes it on the simulation side. The UI never
+receives the component or an ECS entity.
 
 `OperativeSnapshot`, `IntelligenceEvidence`, `IntelligenceAssessment`, and
 `OperativeManagementProjection` are immutable copies. An evidence row records
@@ -428,8 +430,10 @@ within one assignment are deduplicated. Missing home/work assignments or an
 unknown occupation produce no corresponding discovery. The projection carries
 only copied evidence values; ImGui never reads the target's location or identity
 components. `PlayerIntelligenceDB.OperativeManagement` carries the
-latest roster and reports to the standalone windows. These contracts contain
-no `Entity` references, and report evidence is produced only by task simulation.
+latest roster, current simulation minute, and reports to the standalone windows.
+Each `OperativeSnapshot` includes the scheduled start minute so pending tasks
+can be labeled in the UI. These contracts contain no `Entity` references, and
+report evidence is produced only by task simulation.
 `SimulationTimeFormatter` converts elapsed report and evidence minutes to a
 one-based world day and a zero-padded 24-hour clock time for display.
 `data/intelligence-tasks.json` owns interview duration, maximum follow duration,

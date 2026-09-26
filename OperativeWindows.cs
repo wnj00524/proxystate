@@ -17,6 +17,11 @@ public sealed class AgentsWindow
     private byte _daysMask = 0b0001_1111;
     private string _targetSearch = string.Empty;
     private readonly AgentIdentitySearchIndex _targetIndex = new();
+    private int _followStartOperative;
+    private bool _scheduleFollow;
+    private int _followStartDay = 1;
+    private int _followStartHour;
+    private int _followStartMinute;
 
     public unsafe void Draw(OperativeManagementProjection management,
         IReadOnlyList<PlayerIntelligenceAgentSnapshot> knownAgents,
@@ -31,6 +36,7 @@ public sealed class AgentsWindow
             if (ImGui.Selectable(operative.DisplayName, _selectedOperative == operative.AgentId))
             {
                 _selectedOperative = operative.AgentId;
+                SetFollowStartToNow(management.CurrentMinute, operative.AgentId);
                 _daysMask = operative.WorkDaysMask;
                 _startHour = operative.WorkStartMinute / 60;
                 _startMinute = operative.WorkStartMinute % 60;
@@ -44,6 +50,8 @@ public sealed class AgentsWindow
         if (selected.AgentId == 0) ImGui.Text("Select an operative.");
         else
         {
+            if (_followStartOperative != selected.AgentId)
+                SetFollowStartToNow(management.CurrentMinute, selected.AgentId);
             ImGui.Text(selected.DisplayName);
             ImGui.Text($"Role: {selected.Role}");
             ImGui.Text($"Occupation: {selected.Occupation}");
@@ -73,8 +81,13 @@ public sealed class AgentsWindow
                     Math.Clamp(_startHour, 0, 23) * 60 + Math.Clamp(_startMinute, 0, 59),
                     Math.Clamp(_endHour, 0, 24) * 60 + Math.Clamp(_endMinute, 0, 59)));
             ImGui.Separator();
+            var taskIsScheduled = selected.TaskKind != OperativeTaskKind.None &&
+                management.CurrentMinute < selected.TaskStartMinute;
             ImGui.Text(selected.TaskKind == OperativeTaskKind.None
-                ? "Assignment: Available" : $"Assignment: {selected.TaskKind} Agent {selected.TargetAgentId}");
+                ? "Assignment: Available"
+                : taskIsScheduled
+                    ? $"Scheduled: {selected.TaskKind} Agent {selected.TargetAgentId} · starts {SimulationTimeFormatter.Format(selected.TaskStartMinute)}"
+                    : $"Assignment: {selected.TaskKind} Agent {selected.TargetAgentId}");
             if (selected.TaskKind != OperativeTaskKind.None)
             {
                 if (ImGui.Button("Recall assignment"))
@@ -105,10 +118,32 @@ public sealed class AgentsWindow
                 ImGui.TextDisabled(_targetId == 0 ? "No target selected" : $"Selected: Agent {_targetId}");
                 ImGui.SetNextItemWidth(120);
                 ImGui.InputInt("Follow minutes", ref _durationMinutes);
-                ImGui.BeginDisabled(_targetId == 0);
+                ImGui.Checkbox("Schedule follow start", ref _scheduleFollow);
+                var scheduledStart = -1L;
+                var invalidScheduledStart = false;
+                if (_scheduleFollow)
+                {
+                    ImGui.TextDisabled($"Current simulation time: {SimulationTimeFormatter.Format(management.CurrentMinute)}");
+                    ImGui.SetNextItemWidth(90);
+                    ImGui.InputInt("Start day", ref _followStartDay);
+                    ImGui.SameLine();
+                    ImGui.SetNextItemWidth(70);
+                    ImGui.InputInt("Follow start hour", ref _followStartHour);
+                    ImGui.SameLine();
+                    ImGui.SetNextItemWidth(70);
+                    ImGui.InputInt("Follow start minute", ref _followStartMinute);
+                    var day = Math.Clamp(_followStartDay, 1, int.MaxValue);
+                    var hour = Math.Clamp(_followStartHour, 0, 23);
+                    var minute = Math.Clamp(_followStartMinute, 0, 59);
+                    scheduledStart = ((long)day - 1) * SimulationDefaults.SimulationMinutesPerDay + hour * 60L + minute;
+                    invalidScheduledStart = scheduledStart <= management.CurrentMinute;
+                    if (invalidScheduledStart)
+                        ImGui.TextColored(new Vector4(1f, 0.55f, 0.35f, 1f), "Choose a future simulation time.");
+                }
+                ImGui.BeginDisabled(_targetId == 0 || invalidScheduledStart);
                 if (ImGui.Button("Follow")) commandSink(new(OperativeCommandKind.Assign,
                     selected.AgentId, TaskKind: OperativeTaskKind.Follow, TargetAgentId: _targetId,
-                    DurationMinutes: Math.Clamp(_durationMinutes, 1, 10080)));
+                    DurationMinutes: Math.Clamp(_durationMinutes, 1, 10080), StartAtMinute: scheduledStart));
                 ImGui.SameLine();
                 if (ImGui.Button("Talk")) commandSink(new(OperativeCommandKind.Assign,
                     selected.AgentId, TaskKind: OperativeTaskKind.Talk, TargetAgentId: _targetId));
@@ -117,6 +152,18 @@ public sealed class AgentsWindow
         }
         ImGui.EndChild();
         ImGui.End();
+    }
+
+    /// <summary>Seeds the optional scheduled start from the current simulation clock.</summary>
+    private void SetFollowStartToNow(long currentMinute, int operativeId)
+    {
+        var now = Math.Max(0, currentMinute);
+        var minuteOfDay = (int)(now % SimulationDefaults.SimulationMinutesPerDay);
+        _followStartOperative = operativeId;
+        _scheduleFollow = false;
+        _followStartDay = (int)Math.Clamp(now / SimulationDefaults.SimulationMinutesPerDay + 1, 1, int.MaxValue);
+        _followStartHour = minuteOfDay / 60;
+        _followStartMinute = minuteOfDay % 60;
     }
 }
 
@@ -133,8 +180,12 @@ public sealed class ReportsWindow
         for (var index = 0; index < management.Reports.Count; index++)
         {
             var report = management.Reports[index];
+            // Different completed assignments may share a subject and minute;
+            // scope each row by index so equal visible labels stay distinct.
+            ImGui.PushID(index);
             if (ImGui.Selectable($"{SimulationTimeFormatter.Format(report.Minute)} · Agent {report.SubjectAgentId}", index == _selectedIndex))
                 _selectedIndex = index;
+            ImGui.PopID();
         }
         ImGui.EndChild();
         ImGui.SameLine();
