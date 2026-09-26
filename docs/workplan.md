@@ -34,6 +34,8 @@
 - [x] Crucial Security Check: The Dossier UI displays only traits unlocked in the union of the five Operatives' Knowledge Masks. It uses bitwise AND (&) logic; if the mask bit is 0, it renders "Trait: ???", and if 1, it renders the trait name.
 - [x] Add JSON-defined agent secret states with a default `None` state, debug-only inspection, and preservation across public action updates.
 - [x] [#156: Add operative management and intelligence reports](https://github.com/wnj00524/proxystate/issues/156) — standalone Agents and Reports windows, player-authored weekly rotas, simulation-time follow/talk assignments, sourced evidence, and separate assessments through immutable intelligence projections.
+- [ ] [#161: Show report timestamps as simulation day and time](https://github.com/wnj00524/proxystate/issues/161) — format report and evidence timestamps as the in-world day and 24-hour clock time.
+- [ ] [#162: Promote follow and talk targets to Tier 1](https://github.com/wnj00524/proxystate/issues/162) — retain Tier 1 detail for targets while one or more operative tasks remain active.
 
 ## Milestone 5: Agent Networks — Families and Companies
 

@@ -25,7 +25,8 @@ public enum AgentInterestReason : byte
     Operative = 1 << 0,
     Investigation = 1 << 1,
     RelatedPointOfInterest = 1 << 2,
-    ActiveInteraction = 1 << 3
+    ActiveInteraction = 1 << 3,
+    OperativeTaskTarget = 1 << 4
 }
 
 // This compact state stays on every LOD tier. Profile fields are reserved for
