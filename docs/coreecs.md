@@ -519,6 +519,11 @@ and completed intelligence reports. `OperativeCommandQueue` accepts stable-ID
 commands from ImGui and validates team membership, target IDs, one-task limits,
 durations, and rota times before mutation. Rota changes update detailed
 schedule facts and refresh the shared Tier 3 routine profile if needed.
+The Agents window can schedule a follow for a future simulation day and minute.
+Until that start time the operative remains assigned but does not travel or
+observe; follow duration and its first observation begin at the scheduled time.
+Immediate start remains the default, and times earlier than the current
+simulation minute are rejected.
 
 An active task pauses the operative's normal decision, movement, coordination,
 and activity effects. Its travel follows the selected target through the
@@ -548,3 +553,5 @@ The Reports window formats report and evidence minutes as an in-world day and
 the standalone `Agents` and `Reports` windows render only that projection and
 the existing player-intelligence identity list. They do not query Ground Truth
 entities. Target selection is clipped to visible rows at large populations.
+Agents-window controls use distinct ImGui labels, and each report-list row has
+its own ID scope so repeated report text cannot collide.

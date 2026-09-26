@@ -23,7 +23,8 @@ public struct OperativeAssignment : IComponent
 }
 
 public readonly record struct OperativeTaskCommand(
-    int OperativeId, OperativeTaskKind Kind, int TargetAgentId, int DurationMinutes = 0);
+    int OperativeId, OperativeTaskKind Kind, int TargetAgentId, int DurationMinutes = 0,
+    long StartAtMinute = -1);
 public readonly record struct OperativeRecallCommand(int OperativeId);
 public readonly record struct OperativeRotaCommand(
     int OperativeId, byte WorkDaysMask, int WorkStartMinute, int WorkEndMinute);
@@ -31,7 +32,7 @@ public enum OperativeCommandKind : byte { SetRota, Assign, Recall }
 public readonly record struct OperativeCommand(
     OperativeCommandKind Kind, int OperativeId, byte WorkDaysMask = 0,
     int WorkStartMinute = 0, int WorkEndMinute = 0, OperativeTaskKind TaskKind = OperativeTaskKind.None,
-    int TargetAgentId = 0, int DurationMinutes = 0);
+    int TargetAgentId = 0, int DurationMinutes = 0, long StartAtMinute = -1);
 
 /// <summary>UI command queue processed before the next simulation update.</summary>
 public sealed class OperativeCommandQueue
@@ -48,7 +49,7 @@ public sealed class OperativeCommandQueue
                 OperativeCommandKind.SetRota => system.SetRota(new(command.OperativeId, command.WorkDaysMask,
                     command.WorkStartMinute, command.WorkEndMinute), minute),
                 OperativeCommandKind.Assign => system.Assign(new(command.OperativeId, command.TaskKind,
-                    command.TargetAgentId, command.DurationMinutes), minute),
+                    command.TargetAgentId, command.DurationMinutes, command.StartAtMinute), minute),
                 OperativeCommandKind.Recall => system.Recall(new(command.OperativeId), minute),
                 _ => false
             };
@@ -61,7 +62,11 @@ public sealed class OperativeCommandQueue
 public readonly record struct OperativeSnapshot(
     int AgentId, string DisplayName, string Role, string Occupation, byte WorkDaysMask,
     int WorkStartMinute, int WorkEndMinute, OperativeTaskKind TaskKind,
-    int TargetAgentId, long TaskEndMinute);
+    int TargetAgentId, long TaskEndMinute)
+{
+    /// <summary>Scheduled start minute; equals the current minute for immediate tasks.</summary>
+    public long TaskStartMinute { get; init; }
+}
 
 public readonly record struct IntelligenceEvidence(
     long Minute, int SourceOperativeId, int SubjectAgentId, string Kind, string Detail,
@@ -103,18 +108,21 @@ public sealed class OperativeManagementProjection
 {
     public OperativeManagementProjection(IEnumerable<OperativeSnapshot> operatives,
         IEnumerable<IntelligenceAssessment> reports,
-        IEnumerable<IntelligenceEvidence>? newRoutineDiscoveries = null)
+        IEnumerable<IntelligenceEvidence>? newRoutineDiscoveries = null, long currentMinute = 0)
     {
         Operatives = Array.AsReadOnly(operatives.ToArray());
         Reports = Array.AsReadOnly(reports.ToArray());
         NewRoutineDiscoveries = Array.AsReadOnly(
             (newRoutineDiscoveries ?? Enumerable.Empty<IntelligenceEvidence>()).ToArray());
+        CurrentMinute = currentMinute;
     }
 
     public IReadOnlyList<OperativeSnapshot> Operatives { get; }
     public IReadOnlyList<IntelligenceAssessment> Reports { get; }
     /// <summary>New copied facts for immediate application to player dossiers.</summary>
     public IReadOnlyList<IntelligenceEvidence> NewRoutineDiscoveries { get; }
+    /// <summary>Simulation minute used by schedule selectors and pending status.</summary>
+    public long CurrentMinute { get; }
 }
 
 public sealed record IntelligenceTaskSettings(
@@ -187,12 +195,15 @@ public sealed class OperativeManagementSystem
             var job = _catalog.Jobs.FirstOrDefault(item => item.Hash == identity.OccupationId)?.Name ?? "Unknown occupation";
             return new OperativeSnapshot(agent.Id, $"Agent {agent.Id} (Name ID {identity.NameId})",
                 identity.IntelligenceRole.ToString(), job, rota.WorkDaysMask, rota.WorkStartMinute,
-                rota.WorkEndMinute, task.Kind, task.TargetAgentId, task.EndsAtMinute);
+                rota.WorkEndMinute, task.Kind, task.TargetAgentId, task.EndsAtMinute)
+            {
+                TaskStartMinute = task.StartedAtMinute
+            };
         }).ToArray();
         var discoveries = _pendingRoutineDiscoveries.ToArray();
         _pendingRoutineDiscoveries.Clear();
         return new OperativeManagementProjection(roster,
-            _reports.OrderByDescending(report => report.Minute), discoveries);
+            _reports.OrderByDescending(report => report.Minute), discoveries, minute);
     }
 
     public bool SetRota(OperativeRotaCommand command, long currentMinute)
@@ -224,6 +235,7 @@ public sealed class OperativeManagementSystem
 
     public bool Assign(OperativeTaskCommand command, long currentMinute)
     {
+        var startAtMinute = command.StartAtMinute < 0 ? currentMinute : command.StartAtMinute;
         if (!TryOperative(command.OperativeId, out var operative) ||
             !_agents.TryGetValue(command.TargetAgentId, out var target) || target.IsNull ||
             command.TargetAgentId == command.OperativeId || command.Kind is not (OperativeTaskKind.Follow or OperativeTaskKind.Talk) ||
@@ -231,9 +243,18 @@ public sealed class OperativeManagementSystem
             (command.Kind == OperativeTaskKind.Follow &&
                 (command.DurationMinutes < 1 || command.DurationMinutes > _settings.MaximumFollowMinutes))) return false;
 
+        var taskDuration = command.Kind == OperativeTaskKind.Follow
+            ? command.DurationMinutes : _settings.TalkDurationMinutes;
+        if (startAtMinute < currentMinute || startAtMinute > long.MaxValue - taskDuration) return false;
+
         var ends = command.Kind == OperativeTaskKind.Follow
-            ? currentMinute + command.DurationMinutes : currentMinute + _settings.TalkDurationMinutes;
-        if (!BeginTravel(operative, target.GetComponent<AgentLocation>().CurrentLocationId))
+            ? startAtMinute + command.DurationMinutes : startAtMinute + _settings.TalkDurationMinutes;
+        var targetLocationId = target.GetComponent<AgentLocation>().CurrentLocationId;
+        if (startAtMinute == currentMinute &&
+            !BeginTravel(operative, targetLocationId))
+            return false;
+        if (startAtMinute > currentMinute && _catalog.World.FindShortestRoute(
+                operative.GetComponent<AgentLocation>().CurrentLocationId, targetLocationId) is null)
             return false;
         // Promotion catches up the target before any follow/talk code reads its detailed state.
         _lod.AcquireOperativeTaskTarget(target.Id);
@@ -241,10 +262,10 @@ public sealed class OperativeManagementSystem
         active = new OperativeAssignment
         {
             Kind = command.Kind, TargetAgentId = command.TargetAgentId,
-            StartedAtMinute = currentMinute, EndsAtMinute = ends
+            StartedAtMinute = startAtMinute, EndsAtMinute = ends
         };
         _taskEvidence[operative.Id] = [];
-        _lastObservationMinute[operative.Id] = currentMinute - _settings.FollowObservationIntervalMinutes;
+        _lastObservationMinute[operative.Id] = startAtMinute - _settings.FollowObservationIntervalMinutes;
         return true;
     }
 
@@ -270,6 +291,7 @@ public sealed class OperativeManagementSystem
 
     public void Update(double elapsedMinutes, long minute)
     {
+        var previousMinute = _lastUpdatedMinute;
         _lastUpdatedMinute = minute;
         foreach (var operative in _store.Query<Identity>().Entities.Where(agent => agent.Tags.Has<OperativeTag>())
                      .OrderBy(agent => agent.Id))
@@ -285,7 +307,10 @@ public sealed class OperativeManagementSystem
                 continue;
             }
 
-            AdvanceTravel(operative, target, Math.Max(0d, elapsedMinutes));
+            var taskElapsed = previousMinute < assignment.StartedAtMinute
+                ? Math.Max(0d, minute - assignment.StartedAtMinute)
+                : Math.Max(0d, elapsedMinutes);
+            AdvanceTravel(operative, target, taskElapsed);
 
             if (assignment.Kind == OperativeTaskKind.Follow)
             {
