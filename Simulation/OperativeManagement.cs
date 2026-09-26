@@ -453,7 +453,7 @@ public sealed class OperativeManagementSystem
     private string LocationName(int locationId) =>
         _catalog.World.Locations.FirstOrDefault(item => item.Hash == locationId)?.Name ?? "unknown location";
 
-    private static void AddRoutineEvidence(List<IntelligenceEvidence> evidence, IntelligenceEvidence discovery)
+    private void AddRoutineEvidence(List<IntelligenceEvidence> evidence, IntelligenceEvidence discovery)
     {
         // A target can be seen at home or work many times during one follow;
         // retain one copy of each discovered fact in that assignment's report.
