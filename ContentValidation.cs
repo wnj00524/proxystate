@@ -20,7 +20,8 @@ public static class ContentValidation
         try
         {
             var catalog = ContentCatalog.Load(directory);
-            output.WriteLine($"Validated {catalog.Intents.Count} intents from {Path.Combine(directory, "actions.json")}.");
+            IntelligenceTaskSettings.Load(directory, catalog);
+            output.WriteLine($"Validated {catalog.Intents.Count} intents and intelligence task settings from {Path.Combine(directory, "actions.json")}.");
             return 0;
         }
         catch (Exception exception) when (exception is InvalidDataException or IOException or System.Text.Json.JsonException)

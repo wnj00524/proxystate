@@ -516,7 +516,7 @@ or occupancy state. The service runs in both interactive and headless loops.
 ### 4.26 Operative Management and Reports
 
 `OperativeManagementSystem` is the simulation-side owner of the five
-player-controlled Operatives' editable rotas, active follow/talk assignments,
+player-controlled Operatives' editable rotas, active follow/rapport assignments,
 and completed intelligence reports. `OperativeCommandQueue` accepts stable-ID
 commands from ImGui and validates team membership, target IDs, one-task limits,
 durations, and rota times before mutation. Rota changes update detailed
@@ -537,11 +537,18 @@ the occupation resolves to a configured job, its occupation. Repeated sightings
 in one assignment do not duplicate the same discovery. New routine facts are
 copied through the management projection into the target's dossier as soon as
 they are identified, and are retained as sourced report evidence when the task
-ends. Talk assignments end after the configured interview window; access
-and operative charisma versus target willpower determine whether views are
-recorded. Successful and failed outcomes both produce an assessment.
+ends. Build Rapport assignments end after the configured interaction window.
+At completion, a bounded probability check combines the operative's charisma,
+motivation, stress, and fatigue with the target's willpower and configured
+trait modifiers. The result increases, decreases, or leaves unchanged the
+directional affinity where the target is the source and the operative is the
+target. Its persistent `RapportDelta` survives periodic affinity refreshes.
+The assessment records the outcome and resulting affinity; a sanitized copy is
+available to the target dossier through the player-intelligence projection.
+Later affinity refreshes for edges ending at Operatives publish the same kind
+of sanitized update so the dossier stays current.
 
-While one or more active follow/talk assignments target an agent, the LOD
+While one or more active follow/rapport assignments target an agent, the LOD
 service reference-counts that player-task interest and promotes the target to
 Tier 1 immediately. Clearing or completing each assignment releases its
 reference; normal LOD classification resumes after the last assignment ends.

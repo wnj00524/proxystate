@@ -53,6 +53,51 @@ public sealed class PlayerIntelligenceProjectionTests
     }
 
     [Fact]
+    public void AffinityRefreshPublishesSanitizedTargetToOperativeValues()
+    {
+        var catalog = LoadCatalog();
+        var store = new EntityStore();
+        var operative = CreateDetailedAgent(store, catalog, 100, 0, isOperative: true);
+        var target = CreateDetailedAgent(store, catalog, 1, 0);
+        var relationship = store.CreateEntity(new EdgeData
+        {
+            Source = target,
+            Target = operative,
+            Affinity = -1
+        });
+        var indexes = new AgentSocialIndexes();
+        indexes.Rebuild(store);
+        var system = new InteractionSystem(store, catalog, new FixedRandom(), 1, indexes);
+        var root = new SystemRoot(store) { system };
+
+        root.Update(default);
+
+        var change = Assert.Single(system.DrainOperativeAffinityChanges());
+        Assert.Equal(target.Id, change.TargetAgentId);
+        Assert.Equal(operative.Id, change.OperativeId);
+        Assert.Equal(relationship.GetComponent<EdgeData>().Affinity, change.Affinity);
+    }
+
+    [Fact]
+    public void DossierAppliesSanitizedAffinityChangesIncrementally()
+    {
+        var catalog = LoadCatalog();
+        var store = new EntityStore();
+        var operative = store.CreateEntity(new Identity(), Tags.Get<OperativeTag>());
+        var target = store.CreateEntity(new Identity());
+        var intelligence = PlayerIntelligenceDB.Create(store, catalog);
+        var change = new OperativeAffinityChangedEvent(target.Id, operative.Id, 42.5f);
+
+        Assert.True(intelligence.Apply(change));
+        Assert.False(intelligence.Apply(change));
+
+        Assert.True(intelligence.TryGetAgent(target.Id, out var snapshot));
+        var affinity = Assert.Single(snapshot!.RapportAffinities);
+        Assert.Equal(operative.Id, affinity.OperativeId);
+        Assert.Equal(42.5f, affinity.Affinity);
+    }
+
+    [Fact]
     public void InvestigationCommandsUpdateProjectionAndRejectMissingAgents()
     {
         var catalog = LoadCatalog();
@@ -103,6 +148,8 @@ public sealed class PlayerIntelligenceProjectionTests
         {
             typeof(PlayerIntelligenceAgentSnapshot),
             typeof(OperativeTraitDiscoveryEvent),
+            typeof(OperativeAffinityChangedEvent),
+            typeof(OperativeAffinitySnapshot),
             typeof(InvestigationChangedEvent),
             typeof(InvestigationCommand)
         };

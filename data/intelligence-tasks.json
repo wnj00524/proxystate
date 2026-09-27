@@ -1,10 +1,28 @@
 {
-  "talkDurationMinutes": 240,
+  "rapportDurationMinutes": 120,
   "maximumFollowMinutes": 10080,
-  "talkSuccessDifference": 12,
   "followObservationIntervalMinutes": 60,
   "followConfidenceBase": 0.35,
   "followConfidencePerSkillPoint": 0.005,
-  "talkSuccessConfidence": 0.55,
-  "talkFailureConfidence": 0.2
+  "rapportBaseSuccessChance": 50,
+  "rapportMinimumSuccessChance": 5,
+  "rapportMaximumSuccessChance": 80,
+  "rapportDecreaseChance": 20,
+  "rapportIncreaseDelta": 5,
+  "rapportDecreaseDelta": 3,
+  "rapportOperativeAttributeWeights": {
+    "charisma": 0.5,
+    "motivation": 0.15,
+    "stress": -0.2,
+    "fatigue": -0.2
+  },
+  "rapportTargetAttributeWeights": {
+    "willpower": -0.5
+  },
+  "rapportTargetTraitModifiers": {
+    "brave": 3,
+    "chaste": 0,
+    "greedy": -3,
+    "paranoid": -15
+  }
 }

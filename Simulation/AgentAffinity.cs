@@ -34,9 +34,10 @@ public sealed record AgentAffinitySettings(
 public static class AgentAffinityCalculator
 {
     public static float Calculate(Entity agent, Entity target, bool isFamily,
-        long knownTraitMask, long allTraitBits, int traitCount, AgentAffinitySettings settings)
+        long knownTraitMask, long allTraitBits, int traitCount, AgentAffinitySettings settings,
+        float rapportDelta = 0f)
     {
-        var affinity = CalculateSharedBonus(agent, target, isFamily, settings);
+        var affinity = CalculateSharedBonus(agent, target, isFamily, settings) + rapportDelta;
         if (traitCount > 0 && target.TryGetComponent<Psychology>(out var psychology))
         {
             var sharedMask = psychology.TraitMask & knownTraitMask & allTraitBits;

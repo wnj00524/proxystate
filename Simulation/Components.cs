@@ -127,6 +127,9 @@ public struct EdgeData : IComponent
     // Stored in the configured 0–100 range; affinity remains directional because
     // discovered traits belong to Source's knowledge of Target.
     public float Affinity;
+    // Persistent player-directed rapport contribution, retained when the
+    // shared and discovered-trait portions are recalculated.
+    public float RapportDelta;
     // Captured at graph creation so refreshes apply the family bonus without
     // repeatedly walking network memberships.
     public bool IsFamily;

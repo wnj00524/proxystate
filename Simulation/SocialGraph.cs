@@ -8,6 +8,8 @@ namespace ProxyState.Simulation;
 /// published, so consumers never need an ECS entity or the target's Psychology.
 /// </summary>
 public readonly record struct OperativeTraitDiscoveryEvent(int TargetAgentId, long KnownTraitMask);
+/// <summary>A copied affinity refresh where an operative is the relationship target.</summary>
+public readonly record struct OperativeAffinityChangedEvent(int TargetAgentId, int OperativeId, float Affinity);
 
 /// <summary>
 /// Creates a randomized simple undirected graph and stores each pair as two
@@ -173,6 +175,7 @@ public sealed class InteractionSystem : QuerySystem<Identity>
     private readonly AgentAffinitySettings _affinity;
     private readonly IReadOnlyList<TraitDefinition> _traits;
     private readonly List<OperativeTraitDiscoveryEvent> _operativeDiscoveries = [];
+    private readonly List<OperativeAffinityChangedEvent> _operativeAffinityChanges = [];
     private int _ticks;
 
     public InteractionSystem(
@@ -211,6 +214,14 @@ public sealed class InteractionSystem : QuerySystem<Identity>
     {
         var result = _operativeDiscoveries.ToArray();
         _operativeDiscoveries.Clear();
+        return result;
+    }
+
+    /// <summary>Returns copied target-to-operative affinity refreshes.</summary>
+    public OperativeAffinityChangedEvent[] DrainOperativeAffinityChanges()
+    {
+        var result = _operativeAffinityChanges.ToArray();
+        _operativeAffinityChanges.Clear();
         return result;
     }
 
@@ -297,12 +308,16 @@ public sealed class InteractionSystem : QuerySystem<Identity>
             edge.KnownTraitMask,
             _allTraitBits,
             _traits.Count,
-            _affinity);
+            _affinity,
+            edge.RapportDelta);
         if (edge.Affinity != previousAffinity && edge.Source.HasComponent<DecisionState>())
         {
             ref var decision = ref edge.Source.GetComponent<DecisionState>();
             DecisionInvalidation.SignalTargetAvailability(ref decision);
         }
+        if (edge.Affinity != previousAffinity && edge.Target.Tags.Has<OperativeTag>())
+            _operativeAffinityChanges.Add(new OperativeAffinityChangedEvent(
+                edge.Source.Id, edge.Target.Id, edge.Affinity));
     }
 
 }

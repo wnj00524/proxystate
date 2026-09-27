@@ -53,7 +53,8 @@ public static class Program
         var intelligence = PlayerIntelligenceDB.Create(store, catalog);
         var investigationCommands = new InvestigationCommandQueue();
         var operativeManagement = new OperativeManagementSystem(store, catalog, lodService,
-            IntelligenceTaskSettings.Load(contentDirectory));
+            IntelligenceTaskSettings.Load(contentDirectory, catalog),
+            SimulationRandomStreams.Rapport(simulationSeed), agentSocialIndexes);
         var operativeCommands = new OperativeCommandQueue();
         var interactionSystem = new InteractionSystem(store, catalog, SimulationRandomStreams.Interactions(simulationSeed), socialIndexes: agentSocialIndexes);
         var clock = new WorldClockSystem(store);
@@ -107,6 +108,7 @@ public static class Program
                 factionSystem.Update(clock.ClockEntity.GetComponent<WorldTime>().DayIndex + 1);
                 researchSystem.Update();
                 foreach (var discovery in interactionSystem.DrainOperativeDiscoveries()) intelligence.Apply(discovery);
+                foreach (var change in interactionSystem.DrainOperativeAffinityChanges()) intelligence.Apply(change);
                 var worldTime = WorldTimeSnapshot.From(clock.ClockEntity.GetComponent<WorldTime>());
 
                 Raylib.BeginDrawing();
