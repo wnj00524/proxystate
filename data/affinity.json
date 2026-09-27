@@ -1,0 +1,16 @@
+{
+  "ageBandBonus": 8,
+  "occupationBonus": 8,
+  "homeLocationBonus": 8,
+  "wealthAttribute": "wealth",
+  "wealthSimilarity": [
+    { "x": 0, "y": 12 },
+    { "x": 0.1, "y": 9 },
+    { "x": 0.25, "y": 4 },
+    { "x": 1, "y": 0 }
+  ],
+  "familyNetworkType": "family",
+  "familyBonus": 35,
+  "minimum": 0,
+  "maximum": 100
+}

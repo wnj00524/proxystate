@@ -273,7 +273,8 @@ public sealed class ContentCatalog
         AgentNetworkCatalog networks,
         AgentLodSettings lod,
         PoliticsSettings politics,
-        PoliticalResearchSettings research)
+        PoliticalResearchSettings research,
+        AgentAffinitySettings affinity)
     {
         Traits = traits;
         Actions = actions;
@@ -287,6 +288,7 @@ public sealed class ContentCatalog
         Lod = lod;
         Politics = politics;
         Research = research;
+        Affinity = affinity;
         AllTraitBits = traits.Aggregate(0L, (mask, trait) => mask | trait.Bit);
     }
 
@@ -302,6 +304,7 @@ public sealed class ContentCatalog
     public AgentLodSettings Lod { get; }
     public PoliticsSettings Politics { get; }
     public PoliticalResearchSettings Research { get; }
+    public AgentAffinitySettings Affinity { get; }
     public long AllTraitBits { get; }
 
     public ActivityDefinition GetActivity(int hash) => Actions
@@ -324,6 +327,7 @@ public sealed class ContentCatalog
         var lodDocument = LoadObject<LodDocument>(directory, "lod.json", options);
         var politicsDocument = LoadObject<PoliticsDocument>(directory, "politics.json", options);
         var researchDocument = LoadObject<PoliticalResearchDocument>(directory, "research.json", options);
+        var affinityDocument = LoadObject<AgentAffinityDocument>(directory, "affinity.json", options);
         var networksPath = Path.Combine(directory, "networks.json");
         if (!File.Exists(networksPath))
             throw new FileNotFoundException($"Required content file was not found: {networksPath}", networksPath);
@@ -333,11 +337,66 @@ public sealed class ContentCatalog
         var world = ValidateWorld(jobs, worldDocument.Locations, worldDocument.Connections);
         ValidateFactions(factions, jobs);
         var networks = AgentNetworkCatalog.Load(networksPath, options);
+        var affinity = ValidateAffinity(affinityDocument, agentAttributes, networks);
         var intents = IntentCompiler.Compile(actions, traits, agentAttributes, networks);
         var lod = ValidateLod(lodDocument, intents, traits, world, jobs);
         var politics = ValidatePolitics(politicsDocument, agentAttributes, world, jobs);
         var research = ValidatePoliticalResearch(researchDocument, jobs);
-        return new ContentCatalog(traits, actions, intents, secretStates, factions, agentAttributes, jobs, world, networks, lod, politics, research);
+        return new ContentCatalog(traits, actions, intents, secretStates, factions, agentAttributes, jobs, world, networks, lod, politics, research, affinity);
+    }
+
+    private static AgentAffinitySettings ValidateAffinity(AgentAffinityDocument document,
+        AgentAttributeSchema attributes, AgentNetworkCatalog networks)
+    {
+        static void Bonus(float value, string field)
+        {
+            if (!float.IsFinite(value) || value < 0)
+                throw new InvalidDataException($"affinity.json:{field} must be a finite non-negative value.");
+        }
+
+        Bonus(document.AgeBandBonus, "ageBandBonus");
+        Bonus(document.OccupationBonus, "occupationBonus");
+        Bonus(document.HomeLocationBonus, "homeLocationBonus");
+        Bonus(document.FamilyBonus, "familyBonus");
+        if (!float.IsFinite(document.Minimum) || !float.IsFinite(document.Maximum) ||
+            document.Minimum < 0 || document.Maximum > 100 || document.Minimum >= document.Maximum)
+            throw new InvalidDataException("affinity.json:minimum and maximum must satisfy 0 <= minimum < maximum <= 100.");
+        if (string.IsNullOrWhiteSpace(document.WealthAttribute))
+            throw new InvalidDataException("affinity.json:wealthAttribute is required.");
+        int wealthIndex;
+        try
+        {
+            wealthIndex = attributes.GetIndex(document.WealthAttribute);
+        }
+        catch (KeyNotFoundException exception)
+        {
+            throw new InvalidDataException($"affinity.json:wealthAttribute '{document.WealthAttribute}' is not defined in agent-schema.json.", exception);
+        }
+        var wealthDefinition = attributes.Definitions[wealthIndex];
+        if (wealthDefinition.Max <= wealthDefinition.Min)
+            throw new InvalidDataException("affinity.json:wealthAttribute must have a positive schema range.");
+        if (document.WealthSimilarity is null || document.WealthSimilarity.Count < 2 ||
+            document.WealthSimilarity.Any(point => !float.IsFinite(point.X) || !float.IsFinite(point.Y) ||
+                point.X is < 0 or > 1 || point.Y < 0) ||
+            document.WealthSimilarity[0].X != 0 || document.WealthSimilarity[^1].X != 1 ||
+            document.WealthSimilarity.Zip(document.WealthSimilarity.Skip(1), (left, right) =>
+                right.X > left.X && right.Y <= left.Y).Any(valid => !valid))
+            throw new InvalidDataException("affinity.json:wealthSimilarity must have increasing x values from 0 through 1, non-increasing y values, and finite non-negative values.");
+        if (string.IsNullOrWhiteSpace(document.FamilyNetworkType))
+            throw new InvalidDataException("affinity.json:familyNetworkType is required.");
+        NetworkTypeDefinition familyType;
+        try
+        {
+            familyType = networks.GetType(document.FamilyNetworkType);
+        }
+        catch (KeyNotFoundException exception)
+        {
+            throw new InvalidDataException($"affinity.json:familyNetworkType '{document.FamilyNetworkType}' is not defined in networks.json.", exception);
+        }
+        return new AgentAffinitySettings(document.AgeBandBonus, document.OccupationBonus,
+            document.HomeLocationBonus, document.WealthSimilarity.AsReadOnly(), wealthIndex,
+            wealthDefinition.Min, wealthDefinition.Max, familyType.Hash, document.FamilyBonus,
+            document.Minimum, document.Maximum);
     }
 
     private static PoliticalResearchSettings ValidatePoliticalResearch(PoliticalResearchDocument document,

@@ -69,6 +69,19 @@ attribute is scaled in activity choices. Renaming or removing an attribute can
 break an activity in `actions.json` or a built-in simulation feature. Search
 the whole project for the ID before doing either.
 
+### `affinity.json`: relationship affinity
+
+This file controls the bonuses that contribute to each social edge's affinity.
+Same age band, occupation, and home location each add their configured value.
+`wealthSimilarity` is a piecewise-linear curve: `x` is the absolute wealth gap
+divided by the wealth attribute's schema range, and `y` is the affinity bonus
+for that gap. Its points must increase in `x` from 0 to 1, and `y` must stay
+the same or decrease as wealth differences grow. Membership in the
+configured `familyNetworkType` adds `familyBonus`. Similarity bonuses combine
+with the affinity earned from traits discovered by that relationship and are
+clamped between `minimum` and `maximum` (normally 0 and 100). Wealth similarity
+refreshes when the relationship interaction system processes that source.
+
 ### `traits.json`: yes-or-no personality traits
 
 Each generated agent may have each trait.

@@ -262,7 +262,8 @@ To model the social network and intelligence discovery, relationships are create
 public struct EdgeData : IComponent {
     public Entity Source;
     public Entity Target;
-    public float Affinity;       // -100 to 100
+    public float Affinity;       // Configured 0–100 affinity score.
+    public bool IsFamily;        // Captured at graph creation for affinity refresh.
 
     // KNOWLEDGE MASKS (Parallel Bitmasks)
     // 1 = Source knows this data about Target; 0 = Hidden
@@ -279,15 +280,27 @@ entities, one in each direction, with independent knowledge masks. Populations
 smaller than six receive the largest valid graph degree for their size. Self-links
 and duplicate peers are not created.
 
+`data/affinity.json` defines the shared age-band, occupation, home-location,
+wealth-similarity, and family bonuses plus the score bounds. Wealth similarity
+uses a piecewise-linear curve over absolute wealth difference normalized by the
+configured wealth attribute's schema range. Each `EdgeData.IsFamily` flag is set
+when its agents share the configured family network. Initial edges receive
+these shared bonuses immediately; interaction cadence updates recalculate the
+wealth bonus and add the directed discovered-trait contribution. The immutable
+`AgentAffinitySettings` catalog value contains resolved schema/network IDs and
+the validated curve. Affinity is clamped to its configured bounds, which
+default to 0–100.
+
 `InteractionSystem` processes the packed outgoing edges of eligible detailed
 sources on the configured interval (60 ECS ticks by default), rather than
 scanning the entire edge population. A source's d100 plus `perception` competes with the target's
 d100 plus `willpower`; a target with the `paranoid` trait receives a 20-point
 willpower bonus. A successful contest reveals one present, previously unknown
 trait by OR-ing its bit into `KnownTraitMask`. The mask records confirmed
-present traits only, so confirmed absence is not represented. Affinity is the
-normalized percentage of configured traits shared by the target and the
-source's known mask.
+present traits only, so confirmed absence is not represented. The discovered
+trait contribution is the percentage of configured traits shared by the target
+and the source's known mask; shared similarity and family bonuses are added
+before the configured affinity clamp.
 
 `AgentSocialIndexes` is the persistent, non-ECS lookup snapshot created after
 agent, network, and social-edge generation. Its direct agent directory is

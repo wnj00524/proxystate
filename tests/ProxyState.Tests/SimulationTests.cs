@@ -299,7 +299,8 @@ public sealed class SimulationTests
 
         Assert.All(edges, edge =>
         {
-            Assert.Equal(0f, edge.Affinity);
+            Assert.Equal(AgentAffinityCalculator.CalculateSharedBonus(
+                edge.Source, edge.Target, edge.IsFamily, catalog.Affinity), edge.Affinity);
             Assert.Equal(0L, edge.KnownTraitMask);
             Assert.Equal(0, edge.KnownStatsMask);
             Assert.Equal(0, edge.KnownPoliticalMask);
@@ -370,9 +371,9 @@ public sealed class SimulationTests
         root.Update(default);
 
         Assert.Equal(1L, forward.GetComponent<EdgeData>().KnownTraitMask);
-        Assert.Equal(25f, forward.GetComponent<EdgeData>().Affinity);
+        Assert.Equal(45f, forward.GetComponent<EdgeData>().Affinity);
         Assert.Equal(0L, reverse.GetComponent<EdgeData>().KnownTraitMask);
-        Assert.Equal(0f, reverse.GetComponent<EdgeData>().Affinity);
+        Assert.Equal(20f, reverse.GetComponent<EdgeData>().Affinity);
     }
 
     [Fact]
@@ -397,7 +398,7 @@ public sealed class SimulationTests
 
         var edge = edgeEntity.GetComponent<EdgeData>();
         Assert.Equal(1L, edge.KnownTraitMask);
-        Assert.Equal(25f, edge.Affinity);
+        Assert.Equal(45f, edge.Affinity);
         Assert.Equal(0L, edge.KnownTraitMask & ~catalog.AllTraitBits);
     }
 
@@ -1126,7 +1127,7 @@ public sealed class SimulationTests
         public static void CopyCatalogFiles(string directory)
         {
             var source = System.IO.Path.Combine(AppContext.BaseDirectory, "data");
-            foreach (var fileName in new[] { "actions.json", "secret-states.json", "factions.json", "traits.json", "agent-schema.json", "jobs.json", "world.json", "networks.json", "lod.json", "politics.json", "research.json" })
+            foreach (var fileName in new[] { "actions.json", "secret-states.json", "factions.json", "traits.json", "agent-schema.json", "jobs.json", "world.json", "networks.json", "lod.json", "politics.json", "research.json", "affinity.json" })
             {
                 File.Copy(System.IO.Path.Combine(source, fileName), System.IO.Path.Combine(directory, fileName));
             }

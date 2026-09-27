@@ -23,7 +23,7 @@ public sealed class AgentSpawner
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         _schema = catalog.AgentAttributes;
         _world = catalog.World;
-        _socialGraphBuilder = socialGraphBuilder ?? new SocialGraphBuilder(catalog.Networks);
+        _socialGraphBuilder = socialGraphBuilder ?? new SocialGraphBuilder(catalog.Networks, catalog.Affinity);
         _networkBuilder = new AgentNetworkBuilder(catalog.Networks);
         _populationJobs = catalog.Jobs.Where(job => job.SelectionMethod is null && job.FactionRole is null).ToArray();
         if (_populationJobs.Length == 0)
