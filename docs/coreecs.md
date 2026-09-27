@@ -73,7 +73,9 @@ data before the detailed systems can read them.
 * Each edge performs an opposed d100 contest: `Source` rolls d100 plus schema-defined `perception`; `Target` rolls d100 plus schema-defined `willpower`, with a 20-point bonus when the target has the `Paranoid` trait.
 * On a source victory, one present and not-yet-known target trait is selected and revealed with bitwise `OR` on `EdgeData.KnownTraitMask` (for example, `KnownTraitMask |= 0x0004`).
 * Reciprocal edges discover independently because each direction owns a separate knowledge mask.
-* Recalculate `Affinity` as the number of shared known trait bits divided by the configured trait count and scaled to `0` through `100`.
+* Seed each directed edge with JSON-configured shared demographic, occupation, home-location, and wealth-similarity bonuses. Family membership adds its larger configured bonus.
+* On the same interaction cadence, recalculate `Affinity` from those shared bonuses plus the percentage of the target's trait bits that the source knows, clamped to the configured bounds (0–100 by default).
+* Wealth similarity is refreshed as each source's outgoing edges are processed; reciprocal edges can therefore have different discovered-trait contributions while sharing the same affinity baseline.
 * `KnownStatsMask` and `KnownPoliticalMask` remain reserved and unchanged in this milestone.
 
 ### 4.3 Fatigue and Stress System (Milestone 1)
@@ -514,7 +516,7 @@ or occupancy state. The service runs in both interactive and headless loops.
 ### 4.26 Operative Management and Reports
 
 `OperativeManagementSystem` is the simulation-side owner of the five
-player-controlled Operatives' editable rotas, active follow/talk assignments,
+player-controlled Operatives' editable rotas, active follow/rapport assignments,
 and completed intelligence reports. `OperativeCommandQueue` accepts stable-ID
 commands from ImGui and validates team membership, target IDs, one-task limits,
 durations, and rota times before mutation. Rota changes update detailed
@@ -535,11 +537,18 @@ the occupation resolves to a configured job, its occupation. Repeated sightings
 in one assignment do not duplicate the same discovery. New routine facts are
 copied through the management projection into the target's dossier as soon as
 they are identified, and are retained as sourced report evidence when the task
-ends. Talk assignments end after the configured interview window; access
-and operative charisma versus target willpower determine whether views are
-recorded. Successful and failed outcomes both produce an assessment.
+ends. Build Rapport assignments end after the configured interaction window.
+At completion, a bounded probability check combines the operative's charisma,
+motivation, stress, and fatigue with the target's willpower and configured
+trait modifiers. The result increases, decreases, or leaves unchanged the
+directional affinity where the target is the source and the operative is the
+target. Its persistent `RapportDelta` survives periodic affinity refreshes.
+The assessment records the outcome and resulting affinity; a sanitized copy is
+available to the target dossier through the player-intelligence projection.
+Later affinity refreshes for edges ending at Operatives publish the same kind
+of sanitized update so the dossier stays current.
 
-While one or more active follow/talk assignments target an agent, the LOD
+While one or more active follow/rapport assignments target an agent, the LOD
 service reference-counts that player-task interest and promotes the target to
 Tier 1 immediately. Clearing or completing each assignment releases its
 reference; normal LOD classification resumes after the last assignment ends.

@@ -145,8 +145,8 @@ public sealed class AgentsWindow
                     selected.AgentId, TaskKind: OperativeTaskKind.Follow, TargetAgentId: _targetId,
                     DurationMinutes: Math.Clamp(_durationMinutes, 1, 10080), StartAtMinute: scheduledStart));
                 ImGui.SameLine();
-                if (ImGui.Button("Talk")) commandSink(new(OperativeCommandKind.Assign,
-                    selected.AgentId, TaskKind: OperativeTaskKind.Talk, TargetAgentId: _targetId));
+                if (ImGui.Button("Build Rapport")) commandSink(new(OperativeCommandKind.Assign,
+                    selected.AgentId, TaskKind: OperativeTaskKind.BuildRapport, TargetAgentId: _targetId));
                 ImGui.EndDisabled();
             }
         }

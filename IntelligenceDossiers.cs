@@ -19,6 +19,9 @@ public sealed record PlayerIntelligenceAgentSnapshot(
     bool IsUnderInvestigation)
 {
     public string DisplayName => $"Agent {EntityId} (Name ID {NameId})";
+    /// <summary>Known target affinity toward each Operative after rapport interactions.</summary>
+    public IReadOnlyList<OperativeAffinitySnapshot> RapportAffinities { get; init; } =
+        Array.Empty<OperativeAffinitySnapshot>();
     /// <summary>Routine facts learned by the player team through sourced observations.</summary>
     public string? KnownResidence { get; init; }
     public string? KnownWorkplace { get; init; }
@@ -80,8 +83,14 @@ public sealed class PlayerIntelligenceDB
                 Diagnostics.IncrementalUpdates++;
             }
         }
+        foreach (var change in projection.NewRapportAffinities)
+            ApplyRapportAffinity(change.TargetAgentId, change.OperativeId, change.Affinity);
         OperativeManagement = projection;
     }
+
+    /// <summary>Applies a sanitized affinity refresh copied from an ECS system.</summary>
+    public bool Apply(OperativeAffinityChangedEvent change) =>
+        ApplyRapportAffinity(change.TargetAgentId, change.OperativeId, change.Affinity);
 
     public PlayerIntelligenceProjectionDiagnostics Diagnostics { get; }
 
@@ -110,11 +119,18 @@ public sealed class PlayerIntelligenceDB
             .Select(entity => entity.Id)
             .ToHashSet();
         var knownMasksByTarget = new Dictionary<int, long>();
+        var rapportByTarget = new Dictionary<int, List<OperativeAffinitySnapshot>>();
 
         foreach (var edgeEntity in store.Query<EdgeData>().Entities)
         {
             diagnostics.InitializationEdgeVisits++;
             var edge = edgeEntity.GetComponent<EdgeData>();
+            if (operativeEntityIds.Contains(edge.Target.Id))
+            {
+                if (!rapportByTarget.TryGetValue(edge.Source.Id, out var affinities))
+                    rapportByTarget[edge.Source.Id] = affinities = [];
+                affinities.Add(new OperativeAffinitySnapshot(edge.Target.Id, edge.Affinity));
+            }
             if (!operativeEntityIds.Contains(edge.Source.Id))
             {
                 continue;
@@ -136,7 +152,11 @@ public sealed class PlayerIntelligenceDB
                     operativeEntityIds.Contains(entity.Id),
                     identity.IntelligenceRole,
                     knownMasksByTarget.GetValueOrDefault(entity.Id),
-                    IsUnderInvestigation: false);
+                    IsUnderInvestigation: false)
+                {
+                    RapportAffinities = Array.AsReadOnly(
+                        rapportByTarget.GetValueOrDefault(entity.Id, []).OrderBy(item => item.OperativeId).ToArray())
+                };
             })
             .ToArray();
 
@@ -163,6 +183,23 @@ public sealed class PlayerIntelligenceDB
         var combined = previous.KnownTraitMask | (discovery.KnownTraitMask & _allTraitBits);
         if (combined == previous.KnownTraitMask) return false;
         _agents[index] = previous with { KnownTraitMask = combined };
+        Diagnostics.IncrementalUpdates++;
+        return true;
+    }
+
+    private bool ApplyRapportAffinity(int targetId, int operativeId, float affinity)
+    {
+        var index = FindIndex(targetId);
+        if (index < 0) return false;
+        var previous = _agents[index];
+        var affinities = previous.RapportAffinities.ToDictionary(item => item.OperativeId);
+        if (affinities.TryGetValue(operativeId, out var current) && current.Affinity == affinity)
+            return false;
+        affinities[operativeId] = new OperativeAffinitySnapshot(operativeId, affinity);
+        _agents[index] = previous with
+        {
+            RapportAffinities = Array.AsReadOnly(affinities.Values.OrderBy(item => item.OperativeId).ToArray())
+        };
         Diagnostics.IncrementalUpdates++;
         return true;
     }
@@ -402,6 +439,14 @@ public sealed class DossierWindow
                 commandSink(DossierInvestigationActions.Toggle(agent));
         }
         ImGui.Text($"Under investigation: {(agent.IsUnderInvestigation ? "Yes" : "No")}");
+
+        if (agent.RapportAffinities.Count > 0)
+        {
+            ImGui.Separator();
+            ImGui.Text("Affinity toward operatives");
+            foreach (var affinity in agent.RapportAffinities)
+                ImGui.BulletText($"Operative {affinity.OperativeId}: {affinity.Affinity:0.#}");
+        }
 
         ImGui.Separator();
         ImGui.Text("Known routine");

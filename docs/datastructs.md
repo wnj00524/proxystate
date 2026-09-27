@@ -262,7 +262,9 @@ To model the social network and intelligence discovery, relationships are create
 public struct EdgeData : IComponent {
     public Entity Source;
     public Entity Target;
-    public float Affinity;       // -100 to 100
+    public float Affinity;       // Configured 0–100 affinity score.
+    public float RapportDelta;   // Persistent contribution from operative rapport tasks.
+    public bool IsFamily;        // Captured at graph creation for affinity refresh.
 
     // KNOWLEDGE MASKS (Parallel Bitmasks)
     // 1 = Source knows this data about Target; 0 = Hidden
@@ -279,15 +281,32 @@ entities, one in each direction, with independent knowledge masks. Populations
 smaller than six receive the largest valid graph degree for their size. Self-links
 and duplicate peers are not created.
 
+`data/affinity.json` defines the shared age-band, occupation, home-location,
+wealth-similarity, and family bonuses plus the score bounds. Wealth similarity
+uses a piecewise-linear curve over absolute wealth difference normalized by the
+configured wealth attribute's schema range. Each `EdgeData.IsFamily` flag is set
+when its agents share the configured family network. Initial edges receive
+these shared bonuses immediately; interaction cadence updates recalculate the
+wealth bonus and add the directed discovered-trait contribution. The immutable
+`AgentAffinitySettings` catalog value contains resolved schema/network IDs and
+the validated curve. Affinity is clamped to its configured bounds, which
+default to 0–100.
+`RapportDelta` is added to the recalculated baseline and retained across
+interaction refreshes, so player-directed relationship changes persist.
+
 `InteractionSystem` processes the packed outgoing edges of eligible detailed
 sources on the configured interval (60 ECS ticks by default), rather than
 scanning the entire edge population. A source's d100 plus `perception` competes with the target's
 d100 plus `willpower`; a target with the `paranoid` trait receives a 20-point
 willpower bonus. A successful contest reveals one present, previously unknown
 trait by OR-ing its bit into `KnownTraitMask`. The mask records confirmed
-present traits only, so confirmed absence is not represented. Affinity is the
-normalized percentage of configured traits shared by the target and the
-source's known mask.
+present traits only, so confirmed absence is not represented. The discovered
+trait contribution is the percentage of configured traits shared by the target
+and the source's known mask; shared similarity and family bonuses are added
+before the configured affinity clamp.
+When a refreshed edge points to an Operative, `OperativeAffinityChangedEvent`
+copies the target-to-operative affinity into `PlayerIntelligenceDB`; it carries
+only stable IDs and a numeric score.
 
 `AgentSocialIndexes` is the persistent, non-ECS lookup snapshot created after
 agent, network, and social-edge generation. Its direct agent directory is
@@ -411,14 +430,14 @@ days and times are rejected; a rota that cannot fit its commute is rolled back.
 scheduled start minute, and end minute. A future start keeps the assignment
 pending; travel, duration, and observations begin at the selected minute. Only
 one assignment can be active or pending per operative. `OperativeCommand` is the
-stable-ID UI request for rota edits, follow/talk assignments, or recall;
+stable-ID UI request for rota edits, follow/rapport assignments, or recall;
 `OperativeCommandQueue` processes it on the simulation side. The UI never
 receives the component or an ECS entity.
 
 `OperativeSnapshot`, `IntelligenceEvidence`, `IntelligenceAssessment`, and
 `OperativeManagementProjection` are immutable copies. An evidence row records
 the simulation minute, source operative, subject, observation kind, detail, and
-an optional copied value for a newly identified routine fact. The projection
+an optional copied routine fact or resulting numeric affinity. The projection
 carries new routine discoveries separately so `PlayerIntelligenceDB` can update
 the matching dossier without rescanning reports or querying ECS.
 An assessment keeps its summary and confidence separate from its read-only
@@ -431,13 +450,17 @@ unknown occupation produce no corresponding discovery. The projection carries
 only copied evidence values; ImGui never reads the target's location or identity
 components. `PlayerIntelligenceDB.OperativeManagement` carries the
 latest roster, current simulation minute, and reports to the standalone windows.
+Each target snapshot carries sanitized affinity values toward specific
+operatives. `RapportAffinityChange` copies those values from completed
+interactions; it contains only stable IDs and numbers, never ECS entities.
 Each `OperativeSnapshot` includes the scheduled start minute so pending tasks
 can be labeled in the UI. These contracts contain no `Entity` references, and
 report evidence is produced only by task simulation.
 `SimulationTimeFormatter` converts elapsed report and evidence minutes to a
 one-based world day and a zero-padded 24-hour clock time for display.
-`data/intelligence-tasks.json` owns interview duration, maximum follow duration,
-observation cadence, success threshold, and confidence settings.
+`data/intelligence-tasks.json` owns rapport duration, maximum follow duration,
+observation cadence, confidence settings, rapport chance bounds and attribute
+weights, target-trait modifiers, and affinity deltas.
 
 ### 2.7 Agent Network Catalog
 

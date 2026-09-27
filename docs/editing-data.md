@@ -69,6 +69,19 @@ attribute is scaled in activity choices. Renaming or removing an attribute can
 break an activity in `actions.json` or a built-in simulation feature. Search
 the whole project for the ID before doing either.
 
+### `affinity.json`: relationship affinity
+
+This file controls the bonuses that contribute to each social edge's affinity.
+Same age band, occupation, and home location each add their configured value.
+`wealthSimilarity` is a piecewise-linear curve: `x` is the absolute wealth gap
+divided by the wealth attribute's schema range, and `y` is the affinity bonus
+for that gap. Its points must increase in `x` from 0 to 1, and `y` must stay
+the same or decrease as wealth differences grow. Membership in the
+configured `familyNetworkType` adds `familyBonus`. Similarity bonuses combine
+with the affinity earned from traits discovered by that relationship and are
+clamped between `minimum` and `maximum` (normally 0 and 100). Wealth similarity
+refreshes when the relationship interaction system processes that source.
+
 ### `traits.json`: yes-or-no personality traits
 
 Each generated agent may have each trait.
@@ -333,14 +346,16 @@ the scheduled call time; sample selection must remain independent of occupancy.
 
 ## Intelligence task settings
 
-`data/intelligence-tasks.json` tunes the shared follow and talk task behavior:
+`data/intelligence-tasks.json` tunes follow and rapport task behavior:
 
-- `talkDurationMinutes` is the simulated window for reaching and interviewing a target.
+- `rapportDurationMinutes` is the simulated window for reaching and interacting with a target.
 - `maximumFollowMinutes` bounds the duration selected by the player.
-- `talkSuccessDifference` is the minimum charisma-minus-willpower score required for the subject to share views.
 - `followObservationIntervalMinutes` sets how often a co-located operative can record a sighting or observed interaction.
 - `followConfidenceBase` and `followConfidencePerSkillPoint` determine confidence in completed follow reports.
-- `talkSuccessConfidence` and `talkFailureConfidence` set confidence for completed and unsuccessful interviews.
+- Rapport success chance starts at `rapportBaseSuccessChance`, adds configured operative and target attribute deviations from their schema averages, and adds each present target trait modifier. The result is clamped to the configured minimum and maximum.
+- `rapportDecreaseChance` assigns the band immediately after success to an affinity decrease; the remaining roll band leaves affinity unchanged.
+- `rapportIncreaseDelta` and `rapportDecreaseDelta` set the size of the affinity change. The target-to-operative edge retains this contribution across regular affinity refreshes.
+- `rapportOperativeAttributeWeights`, `rapportTargetAttributeWeights`, and `rapportTargetTraitModifiers` select and tune the attributes and traits that influence the interaction.
 
 Confidence values must be between 0 and 1. Durations and the observation
 interval must be positive. A follow task can complete without a confirmed

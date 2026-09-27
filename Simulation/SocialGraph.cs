@@ -1,4 +1,3 @@
-using System.Numerics;
 using Friflo.Engine.ECS;
 using Friflo.Engine.ECS.Systems;
 
@@ -9,6 +8,8 @@ namespace ProxyState.Simulation;
 /// published, so consumers never need an ECS entity or the target's Psychology.
 /// </summary>
 public readonly record struct OperativeTraitDiscoveryEvent(int TargetAgentId, long KnownTraitMask);
+/// <summary>A copied affinity refresh where an operative is the relationship target.</summary>
+public readonly record struct OperativeAffinityChangedEvent(int TargetAgentId, int OperativeId, float Affinity);
 
 /// <summary>
 /// Creates a randomized simple undirected graph and stores each pair as two
@@ -19,13 +20,20 @@ public sealed class SocialGraphBuilder
 {
     private readonly int _relationshipsPerAgent;
     private readonly HashSet<int> _socialNetworkTypes;
+    private readonly AgentAffinitySettings? _affinity;
 
     public SocialGraphBuilder(int relationshipsPerAgent = SimulationDefaults.SocialRelationshipsPerAgent)
-        : this(null, relationshipsPerAgent)
+        : this(null, null, relationshipsPerAgent)
     {
     }
 
     public SocialGraphBuilder(AgentNetworkCatalog? networks,
+        int relationshipsPerAgent = SimulationDefaults.SocialRelationshipsPerAgent)
+        : this(networks, null, relationshipsPerAgent)
+    {
+    }
+
+    public SocialGraphBuilder(AgentNetworkCatalog? networks, AgentAffinitySettings? affinity,
         int relationshipsPerAgent = SimulationDefaults.SocialRelationshipsPerAgent)
     {
         if (relationshipsPerAgent < 0)
@@ -34,6 +42,7 @@ public sealed class SocialGraphBuilder
         }
 
         _relationshipsPerAgent = relationshipsPerAgent;
+        _affinity = affinity;
         _socialNetworkTypes = networks?.Types.Where(type => type.SeedsSocialGraph)
             .Select(type => type.Hash).ToHashSet() ?? new HashSet<int>();
     }
@@ -51,6 +60,7 @@ public sealed class SocialGraphBuilder
         }
 
         var pairs = new HashSet<(int First, int Second)>();
+        var familyPairs = BuildFamilyPairs(store);
 
         // An undirected regular graph requires an even degree*vertex count.
         // This also gives sensible behavior for small test populations.
@@ -68,7 +78,7 @@ public sealed class SocialGraphBuilder
         {
             for (var index = 0; index < count; index++)
             {
-                CreatePair(store, shuffled[index], shuffled[(index + offset) % count], pairs);
+                CreatePair(store, shuffled[index], shuffled[(index + offset) % count], pairs, familyPairs);
             }
         }
 
@@ -77,7 +87,7 @@ public sealed class SocialGraphBuilder
             var opposite = count / 2;
             for (var index = 0; index < opposite; index++)
             {
-                CreatePair(store, shuffled[index], shuffled[index + opposite], pairs);
+                CreatePair(store, shuffled[index], shuffled[index + opposite], pairs, familyPairs);
             }
         }
 
@@ -92,26 +102,51 @@ public sealed class SocialGraphBuilder
                 .Select(link => link.Entity).OrderBy(entity => entity.Id).ToArray();
             for (var first = 0; first < members.Length; first++)
                 for (var second = first + 1; second < members.Length; second++)
-                    CreatePair(store, members[first], members[second], pairs);
+                    CreatePair(store, members[first], members[second], pairs, familyPairs);
         }
     }
 
-    private static void CreatePair(EntityStore store, Entity first, Entity second,
-        HashSet<(int First, int Second)> pairs)
+    private HashSet<(int First, int Second)> BuildFamilyPairs(EntityStore store)
+    {
+        var pairs = new HashSet<(int First, int Second)>();
+        if (_affinity is null) return pairs;
+        foreach (var network in store.Query<AgentNetworkData>().Entities)
+        {
+            if (network.GetComponent<AgentNetworkData>().TypeHash != _affinity.FamilyNetworkTypeHash) continue;
+            var members = network.GetIncomingLinks<AgentNetworkMembership>()
+                .Select(link => link.Entity.Id).OrderBy(id => id).ToArray();
+            for (var first = 0; first < members.Length; first++)
+                for (var second = first + 1; second < members.Length; second++)
+                    pairs.Add((members[first], members[second]));
+        }
+        return pairs;
+    }
+
+    private void CreatePair(EntityStore store, Entity first, Entity second,
+        HashSet<(int First, int Second)> pairs, HashSet<(int First, int Second)> familyPairs)
     {
         var key = first.Id < second.Id ? (first.Id, second.Id) : (second.Id, first.Id);
         if (!pairs.Add(key)) return;
+        var isFamily = familyPairs.Contains(key);
         store.CreateEntity(new EdgeData
         {
             Source = first,
-            Target = second
+            Target = second,
+            IsFamily = isFamily,
+            Affinity = InitialAffinity(first, second, isFamily)
         });
         store.CreateEntity(new EdgeData
         {
             Source = second,
-            Target = first
+            Target = first,
+            IsFamily = isFamily,
+            Affinity = InitialAffinity(second, first, isFamily)
         });
     }
+
+    private float InitialAffinity(Entity source, Entity target, bool isFamily) =>
+        _affinity is null ? 0f : AgentAffinityCalculator.Calculate(source, target, isFamily,
+            knownTraitMask: 0, allTraitBits: 0, traitCount: 0, _affinity);
 
     private static void Shuffle(Entity[] values, Random random)
     {
@@ -137,8 +172,10 @@ public sealed class InteractionSystem : QuerySystem<Identity>
     private readonly int _willpowerIndex;
     private readonly long _allTraitBits;
     private readonly long _paranoidBit;
+    private readonly AgentAffinitySettings _affinity;
     private readonly IReadOnlyList<TraitDefinition> _traits;
     private readonly List<OperativeTraitDiscoveryEvent> _operativeDiscoveries = [];
+    private readonly List<OperativeAffinityChangedEvent> _operativeAffinityChanges = [];
     private int _ticks;
 
     public InteractionSystem(
@@ -164,6 +201,7 @@ public sealed class InteractionSystem : QuerySystem<Identity>
         _perceptionIndex = catalog.AgentAttributes.GetIndex("perception");
         _willpowerIndex = catalog.AgentAttributes.GetIndex("willpower");
         _allTraitBits = catalog.AllTraitBits;
+        _affinity = catalog.Affinity;
         _traits = catalog.Traits;
         _paranoidBit = _traits
             .FirstOrDefault(trait => string.Equals(trait.Id, "paranoid", StringComparison.OrdinalIgnoreCase))
@@ -176,6 +214,14 @@ public sealed class InteractionSystem : QuerySystem<Identity>
     {
         var result = _operativeDiscoveries.ToArray();
         _operativeDiscoveries.Clear();
+        return result;
+    }
+
+    /// <summary>Returns copied target-to-operative affinity refreshes.</summary>
+    public OperativeAffinityChangedEvent[] DrainOperativeAffinityChanges()
+    {
+        var result = _operativeAffinityChanges.ToArray();
+        _operativeAffinityChanges.Clear();
         return result;
     }
 
@@ -255,26 +301,23 @@ public sealed class InteractionSystem : QuerySystem<Identity>
         }
 
         var previousAffinity = edge.Affinity;
-        edge.Affinity = CalculateAffinity(
-            targetPsychology.TraitMask,
+        edge.Affinity = AgentAffinityCalculator.Calculate(
+            edge.Source,
+            edge.Target,
+            edge.IsFamily,
             edge.KnownTraitMask,
             _allTraitBits,
-            _traits.Count);
+            _traits.Count,
+            _affinity,
+            edge.RapportDelta);
         if (edge.Affinity != previousAffinity && edge.Source.HasComponent<DecisionState>())
         {
             ref var decision = ref edge.Source.GetComponent<DecisionState>();
             DecisionInvalidation.SignalTargetAvailability(ref decision);
         }
+        if (edge.Affinity != previousAffinity && edge.Target.Tags.Has<OperativeTag>())
+            _operativeAffinityChanges.Add(new OperativeAffinityChangedEvent(
+                edge.Source.Id, edge.Target.Id, edge.Affinity));
     }
 
-    private static float CalculateAffinity(long targetTraitMask, long knownTraitMask, long allTraitBits, int traitCount)
-    {
-        if (traitCount == 0)
-        {
-            return 0f;
-        }
-
-        var sharedMask = targetTraitMask & knownTraitMask & allTraitBits;
-        return BitOperations.PopCount((ulong)sharedMask) * 100f / traitCount;
-    }
 }

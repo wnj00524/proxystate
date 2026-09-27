@@ -84,11 +84,11 @@ The normal interface works from a copied player-intelligence database rather tha
 
 Operatives are the player's intelligence personnel. Their working rota can specify days and start/end times.
 
-The current special assignments are **Follow** and **Talk**. Only one special assignment can be active for an Operative at a time, and assignments interrupt the Operative's normal routine until they finish or are recalled.
+The current special assignments are **Follow** and **Build Rapport**. Only one special assignment can be active for an Operative at a time, and assignments interrupt the Operative's normal routine until they finish or are recalled.
 
 A Follow assignment directs an Operative to observe another resident for a period. It can produce sightings, observations, interaction evidence or unsuccessful observations. Travel and circumstances matter.
 
-A Talk assignment directs an Operative to attempt an interview or conversation. Success is not guaranteed and can produce intelligence or an unsuccessful report.
+A Build Rapport assignment directs an Operative to spend time with a target. The target may become more or less receptive to the Operative, or their relationship may stay the same. The completed report records the outcome, and the target's dossier shows their affinity toward each Operative.
 
 ## Intelligence reports
 
@@ -207,7 +207,7 @@ This section maps the repository to plain-English responsibilities.
 | `ApplicationShell.cs` | Implements the desktop-style application launcher and tracks which application windows are open. It deliberately handles presentation rather than ground-truth simulation data. |
 | `ContentValidation.cs` | Provides the `--validate-content` command. Loads authored data and reports configuration errors without starting the graphical application. |
 | `IntelligenceDossiers.cs` | Implements the player's restricted intelligence database and Surveillance Terminal. It is a key security/design boundary preventing hidden simulation facts from leaking into ordinary dossiers. |
-| `OperativeWindows.cs` | Implements the Agents and Reports user interfaces: Operative rotas, Follow/Talk assignments, recall controls and completed intelligence reporting. |
+| `OperativeWindows.cs` | Implements the Agents and Reports user interfaces: Operative rotas, Follow/Build Rapport assignments, recall controls and completed intelligence reporting. |
 | `PoliticalResearchWindow.cs` | Displays aggregate polling results for Northstar and Townline, including methodology, fieldwork, estimates, uncertainty and trends. |
 | `DebugInspection.cs` | Builds and displays a separate developer-facing ground-truth inspection view. It contains information deliberately excluded from the normal player interface. |
 | `WorldTimePresentation.cs` | Converts simulation time into safe UI data, formats day/time text and draws the persistent clock/speed bar. |
@@ -255,7 +255,7 @@ This section maps the repository to plain-English responsibilities.
 
 | File | What it does |
 | --- | --- |
-| `Simulation/OperativeManagement.cs` | Owns Operative schedules and special assignments, processes Follow/Talk/Recall commands and produces sanitized reports for the player-facing intelligence projection. |
+| `Simulation/OperativeManagement.cs` | Owns Operative schedules and special assignments, processes Follow/Build Rapport/Recall commands and produces sanitized reports for the player-facing intelligence projection. |
 
 The intelligence discovery produced by ordinary interpersonal interaction is integrated with the social/interaction systems and then copied into `PlayerIntelligenceDB` in `IntelligenceDossiers.cs`.
 
@@ -294,7 +294,7 @@ The intelligence discovery produced by ordinary interpersonal interaction is int
 | `data/factions.json` | Political factions, leadership/activist jobs, strategic goals and prerequisites. |
 | `data/politics.json` | Election cycle, nomination period, polling hours and factors affecting candidacy and turnout. |
 | `data/research.json` | Polling companies, fieldwork schedule, demographics, sampling methods, response rules and weighting limits. |
-| `data/intelligence-tasks.json` | Durations and success/confidence parameters for Follow and Talk intelligence work. |
+| `data/intelligence-tasks.json` | Durations, confidence, and configurable rapport chance, state, trait, and affinity parameters for Operative assignments. |
 | `data/secret-states.json` | Hidden/covert resident states. |
 | `data/lod.json` | Rules for reduced-detail and coarse simulation, including decision cadence and coarse daily routines. |
 
